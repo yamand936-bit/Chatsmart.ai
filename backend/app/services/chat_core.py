@@ -158,7 +158,12 @@ async def process_chat_core(
 
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
-    ai_engine = AIEngineService(business_type=business.business_type, products=products, language=detected_lang)
+    ai_engine = AIEngineService(
+        business_type=business.business_type, 
+        products=products, 
+        language=detected_lang,
+        ai_tone=business.ai_tone
+    )
 
     provider = "unknown"
     model = "unknown"

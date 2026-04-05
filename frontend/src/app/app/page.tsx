@@ -55,7 +55,10 @@ export default function MerchantDashboard() {
                     <XAxis dataKey="date" tick={{fontSize: 12}} />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => name === 'الأرباح ($)' ? `${Number(value).toFixed(2)}` : value}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                    />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="orders" name="عدد الطلبات" stroke="#2563eb" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
                     <Line yAxisId="right" type="monotone" dataKey="revenue" name="الأرباح ($)" stroke="#10b981" strokeWidth={3} />

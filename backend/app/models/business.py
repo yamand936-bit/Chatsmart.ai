@@ -18,6 +18,7 @@ class Business(BaseModel):
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     subscription_status: Mapped[str] = mapped_column(String(50), default="trial")
+    ai_tone: Mapped[str] = mapped_column(String(50), default="Professional")
     
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="business", cascade="all, delete-orphan")

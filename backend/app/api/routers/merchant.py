@@ -23,6 +23,13 @@ class ProductCreate(BaseModel):
     image_url: Optional[str] = Field(None, max_length=1000)
     is_active: bool = True
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+    price: Optional[float] = Field(None, ge=0.0)
+    image_url: Optional[str] = Field(None, max_length=1000)
+    is_active: Optional[bool] = None
+
 class OrderCreate(BaseModel):
     product_name: str
     quantity: int
@@ -33,6 +40,9 @@ class OrderCreate(BaseModel):
 
 class ExtractOrderRequest(BaseModel):
     messages: list[str]
+
+class ToneUpdate(BaseModel):
+    tone: str
 
 # ── Response Schemas ──────────────────────────────────────────────────────────
 
@@ -243,6 +253,38 @@ async def delete_product(
     await db.commit()
     return {"status": "ok", "message": "Product deleted"}
 
+@router.put("/products/{product_id}", response_model=ProductOut)
+async def update_product(
+    product_id: uuid.UUID,
+    data: ProductUpdate,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.business_id == business_id,
+        )
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if data.name is not None:
+        product.name = data.name
+    if data.description is not None:
+        product.description = data.description
+    if data.price is not None:
+        product.price = data.price
+    if data.image_url is not None:
+        product.image_url = data.image_url
+    if data.is_active is not None:
+        product.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(product)
+    return product
+
 
 @router.get("/orders", response_model=OrderListResponse)
 async def get_orders(
@@ -302,3 +344,23 @@ async def extract_order(
     except Exception as e:
         print(f"Extraction error: {e}")
         return {"status": "ok", "data": {"quantity": 1, "address": "", "phone": ""}}
+
+@router.put("/tone")
+async def update_tone(
+    request: ToneUpdate,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.business import Business
+    result = await db.execute(select(Business).where(Business.id == business_id))
+    business = result.scalar_one_or_none()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    allowed_tones = ["Professional", "Friendly", "Sales-driven"]
+    if request.tone not in allowed_tones:
+        raise HTTPException(status_code=400, detail="Invalid tone selection")
+        
+    business.ai_tone = request.tone
+    await db.commit()
+    return {"status": "ok", "message": "Tone updated successfully", "tone": business.ai_tone}

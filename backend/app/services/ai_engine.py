@@ -9,18 +9,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AIEngineService:
-    def __init__(self, business_type: str, products: List[Product], language: str = "en"):
+    def __init__(self, business_type: str, products: List[Product], language: str = "en", ai_tone: str = "Professional"):
         self.business_type = business_type
         self.products = products
         self.language = language
+        self.ai_tone = ai_tone
         
     def generate_system_prompt(self) -> str:
         products_context = json.dumps([
             {"id": str(p.id), "name": p.name, "price": p.price}
             for p in self.products[:50]
         ])
+        
+        tone_instruction = ""
+        if self.ai_tone == "Professional":
+            tone_instruction = "Maintain a highly professional, polite, and objective tone. Focus on clarity and accuracy. Do not push products aggressively. Let the customer guide the interaction naturally."
+        elif self.ai_tone == "Friendly":
+            tone_instruction = "Be warm, approachable, and very friendly. Use simple language and occasional emojis. Talk like a helpful, caring friend."
+        elif self.ai_tone == "Sales-driven":
+            tone_instruction = "Be highly proactive, persuasive, and sales-oriented. Keep responses concise. The moment you detect a user's need, IMMEDIATELY suggest a relevant product, highlight its value, and push a call-to-action to purchase."
+        else:
+            tone_instruction = "Maintain a balanced, helpful tone."
+
         return f"""You are an AI assistant for a '{self.business_type}' business.
 Available products/services: {products_context}.
+
+PERSONALITY AND TONE RULE:
+{tone_instruction}
+
 You MUST respond with a perfectly valid JSON object matching this schema:
 {{
   "intent": "create_order" | "none" | "handoff_human" | "technical_support",

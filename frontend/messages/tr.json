@@ -10,7 +10,9 @@
     "actions": "İşlemler",
     "delete": "Sil",
     "action": "İşlem",
-    "delete_confirm": "Bu işletmeyi ve tüm verilerini tamamen silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    "delete_confirm": "Bu işletmeyi ve tüm verilerini tamamen silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "edit": "Düzenle",
+    "save": "Değişiklikleri Kaydet"
   },
   "login": {
     "title": "ChatSmart AI",
@@ -100,7 +102,8 @@
     "totalProducts": "Toplam Ürün",
     "totalProductsSub": "Kataloğunuzdaki aktif ürünler",
     "totalOrders": "Toplam Sipariş",
-    "totalOrdersSub": "Müşteriler veya AI tarafından üretilen siparişler"
+    "totalOrdersSub": "Müşteriler veya AI tarafından üretilen siparişler",
+    "orders_count": "{count, plural, =0 {Sipariş yok} one {# sipariş} other {# sipariş}}"
   },
   "products": {
     "title": "Ürünleri Yönet",
@@ -109,7 +112,14 @@
     "price": "Fiyat ($)",
     "description": "Açıklama",
     "noProducts": "Ürün bulunamadı. İlk ürününüzü yukarıdan ekleyin.",
-    "addButton": "Ekle"
+    "addButton": "Ekle",
+    "edit_product": "Ürünü Düzenle",
+    "edit_success": "Ürün başarıyla güncellendi!",
+    "edit_error": "Ürün güncellenirken hata oluştu.",
+    "image_col": "Resim",
+    "no_image": "Resim Yok",
+    "empty_title": "Yapay zeka satışlarını etkinleştirmek için ilk ürününüzü ekleyin",
+    "empty_desc": "Gösterilecek ürün yok. Yapay zeka asistanının müşterilerinize önermesi ve satması için ürünlerinizi buraya ekleyin."
   },
   "orders": {
     "title": "Müşteri Siparişleri",
@@ -119,7 +129,10 @@
     "amount": "Tutar",
     "status": "Durum",
     "date": "Tarih",
-    "noOrders": "Henüz sipariş yok. AI burada sipariş oluşturacak."
+    "noOrders": "Henüz sipariş yok. AI burada sipariş oluşturacak.",
+    "empty_title": "İlk satışlarınızı bekliyoruz!",
+    "empty_desc": "Yapay zeka asistanını deneyebilir ve siparişleri nasıl aldığını görebilirsiniz.",
+    "try_chat": "Simülatörü Şimdi Dene"
   },
   "chat": {
     "title": "AI Sohbet Simülatörü",
@@ -130,7 +143,31 @@
     "typing": "Yapay zeka yazıyor...",
     "error": "Sunucuya bağlanılamadı",
     "noResponse": "Cevap yok",
-    "limit_reached": "Kullanım sınırına ulaşıldı. Lütfen paketinizi yükseltin."
+    "limit_reached": "Kullanım sınırına ulaşıldı. Lütfen paketinizi yükseltin.",
+    "extracting": "Yapay zeka müşteri verilerini çıkarıyor...",
+    "extracted_success": "Veriler akıllıca dolduruldu!",
+    "extraction_error": "Veri çıkarma başarısız. Lütfen manuel girin.",
+    "convert_to_order_btn": "+ Siparişe Dönüştür",
+    "order_success_toast": "Sipariş dönüştürüldü ve kaydedildi!",
+    "order_error_toast": "Sipariş oluşturulurken hata oluştu.",
+    "no_product_image": "Ürün resmi yok",
+    "order_now": "Şimdi Sipariş Ver",
+    "cards_hint": "Yapay zeka üründen bahsederse kartlar otomatik çıkar.",
+    "new_order_title": "Yeni Sipariş Oluştur",
+    "product_name": "Ürün Adı",
+    "quantity": "Miktar",
+    "total_price": "Toplam Fiyat ($)",
+    "customer_optional": "Müşteri Adı (İsteğe bağlı)",
+    "customer_placeholder": "örn. Ahmet Yılmaz",
+    "phone": "Telefon",
+    "phone_placeholder": "+90xxxxxxx",
+    "address": "Adres",
+    "address_placeholder": "İstanbul, Kadıköy",
+    "save_order": "Siparişi Kaydet",
+    "qr_prices": "Fiyat sor",
+    "qr_catalog": "Katalog göster",
+    "qr_discounts": "İndirim var mı?",
+    "qr_support": "Müşteri hizmetlerine bağlan"
   },
   "system": {
     "title": "Sistem Ayarları",
@@ -142,5 +179,26 @@
     "enterprise_tokens": "Kurumsal Jetonlar",
     "save": "Ayarları Kaydet",
     "saved": "Başarıyla kaydedildi"
+  },
+  "settings": {
+    "title": "Mağaza Ayarları",
+    "token_usage": "Token Kullanımı",
+    "used_of_limit": "{limit} tokenden",
+    "free_tier": "Ücretsiz Plan",
+    "warning": "Önemli Uyarı",
+    "warning_desc": "Limitinizin %80'ini aştınız. Kesintileri önlemek için planınızı yükseltin.",
+    "upgrade_btn": "Şimdi Yükselt",
+    "ai_tone": "Yapay Zeka Tonu",
+    "ai_tone_desc": "Yapay zeka asistanınızın konuşma tarzını seçin.",
+    "tone_professional": "Profesyonel",
+    "tone_friendly": "Arkadaşça",
+    "tone_sales": "Satış odaklı",
+    "tone_updating": "Ton güncelleniyor...",
+    "tone_updated": "Ton başarıyla güncellendi!"
+  },
+  "layout": {
+    "whatsapp_connected": "WhatsApp: Bağlı 🟢",
+    "whatsapp_disconnected": "WhatsApp: Bağlantı yok 🔴",
+    "pdf_export": "Raporu İndir (PDF)"
   }
 }

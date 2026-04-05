@@ -47,6 +47,7 @@ function QuickActions() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations('merchant');
+  const tLayout = useTranslations('layout');
 
   useEffect(() => {
      // Mock New Message Notification (Simulate a live WhatsApp message after 3 seconds)
@@ -92,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                  <QuickActions />
                  <div className="bg-green-50 border border-green-200 px-3 py-1.5 rounded-full flex items-center gap-2" title="الربط مع WhatsApp نشط ويعمل بشكل طبيعي">
                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                     <span className="text-xs font-bold text-green-700">WhatsApp المتصل 🟢</span>
+                     <span className="text-xs font-bold text-green-700">{tLayout('whatsapp_connected')}</span>
                  </div>
              </div>
           </div>
@@ -101,7 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/app/products" className="hover:text-blue-600 font-medium transition text-sm md:text-base">{t('products')}</Link>
             <Link href="/app/orders" className="hover:text-blue-600 font-medium transition text-sm md:text-base">{t('orders')}</Link>
             <Link href="/app/chat" className="hover:text-blue-600 font-medium transition text-sm md:text-base">{t('chat')}</Link>
-            <Link href="/app/settings" className="hover:text-blue-600 font-medium transition text-sm md:text-base">الإعدادات</Link>
+            <Link href="/app/settings" className="hover:text-blue-600 font-medium transition text-sm md:text-base">{tLayout('settings', { fallback: 'الإعدادات' })}</Link>
             <div className="border-l h-6 mx-1 md:mx-2 border-slate-300"></div>
             <div className="flex items-center gap-2">
                <LanguageSwitcher />
