@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: chatsmart_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chatsmart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chatsmart}
+      POSTGRES_DB: ${POSTGRES_DB:-chatsmart_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatsmart} -d ${POSTGRES_DB:-chatsmart_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatsmart_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatsmart_api
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-chatsmart}:${POSTGRES_PASSWORD:-chatsmart}@db:5432/${POSTGRES_DB:-chatsmart_db}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:-production_ready_secret_key_123}
+      - INTEGRATIONS_MODE=live
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["https://smartchat-ai.org","https://www.smartchat-ai.org","http://localhost:3000"]}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: chatsmart_web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,146 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "success": "Başarılı",
+    "logout": "Çıkış",
+    "back": "Geri",
+    "submit": "Gönder",
+    "cancel": "İptal",
+    "actions": "İşlemler",
+    "delete": "Sil",
+    "action": "İşlem",
+    "delete_confirm": "Bu işletmeyi ve tüm verilerini tamamen silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+  },
+  "login": {
+    "title": "ChatSmart AI",
+    "email": "E-posta",
+    "password": "Şifre",
+    "signIn": "Giriş Yap",
+    "failed": "Giriş başarısız"
+  },
+  "admin": {
+    "title": "Yönetici Paneli",
+    "businesses": "Platform İşletmeleri",
+    "createNew": "Yeni Ekle",
+    "ownerEmail": "Sahip E-postası",
+    "businessName": "İşletme Adı",
+    "id": "Kimlik",
+    "createdAt": "Tarih",
+    "stats": {
+      "total_businesses": "Toplam İşletmeler",
+      "active_businesses": "Aktif İşletmeler",
+      "total_orders": "Toplam Siparişler",
+      "total_tokens_used": "Toplam Kullanım",
+      "ai_requests_today": "Bugünün Yapay Zeka İstekleri"
+    },
+    "table": {
+      "name": "İsim",
+      "owner_email": "Kurucu E-postası",
+      "business_type": "Tür",
+      "token_usage": "Jeton Kullanımı",
+      "status": "Durum",
+      "status_active": "Aktif",
+      "status_inactive": "Pasif",
+      "status_unknown": "Bilinmiyor",
+      "no_businesses": "İşletme bulunamadı.",
+      "edit": "Düzenle",
+      "disable": "Devre Dışı Bırak",
+      "view_usage": "Kullanımı Görüntüle",
+      "configure": "Yapılandır",
+      "update": "Güncelle",
+      "settings": "Ayarlar",
+      "confirm_disable": "Bu işletmeyi devre dışı bırakmak istediğinize emin misiniz?",
+      "confirm_enable": "Bu işletmeyi etkinleştirmek istediğinize emin misiniz?",
+      "close": "Kapat",
+      "update_success": "İşletme başarıyla güncellendi!"
+    },
+    "create": {
+      "integrations_title": "Entegrasyonlar ve Özellikler",
+      "type_retail": "Perakende",
+      "type_restaurant": "Restoran",
+      "type_services": "Hizmetler",
+      "business_name": "İşletme Adı",
+      "owner_name": "Kurucu Adı",
+      "email": "E-posta",
+      "password": "Şifre",
+      "phone_number": "Telefon Numarası",
+      "business_type": "İşletme Türü",
+      "telegram": "Telegram",
+      "whatsapp": "WhatsApp",
+      "instagram": "Instagram",
+      "bot_token": "Bot Jetonu",
+      "webhook_secret": "Webhook Şifresi",
+      "phone_number_id": "Telefon Numarası Kimliği",
+      "access_token": "Erişim Jetonu",
+      "app_secret": "Uygulama Şifresi",
+      "verify_token": "Doğrulama Jetonu",
+      "token_limit": "Jeton Sınırı",
+      "monthly_quota": "Aylık Kota",
+      "success": "Başarıyla oluşturuldu!",
+      "error": "Oluşturma başarısız."
+    },
+    "tabs": {
+      "businesses": "İşletmeler",
+      "create": "İşletme Oluştur",
+      "usage": "Kullanım",
+      "plans": "Paketler"
+    },
+    "usage": {
+      "title": "Kullanım Analizi",
+      "subtitle": "Detaylı kullanım grafikleri burada görünecek."
+    }
+  },
+  "merchant": {
+    "title": "Satıcı Paneli",
+    "overview": "Genel Bakış",
+    "products": "Ürünler",
+    "orders": "Siparişler",
+    "chat": "Sohbet Testi",
+    "totalProducts": "Toplam Ürün",
+    "totalProductsSub": "Kataloğunuzdaki aktif ürünler",
+    "totalOrders": "Toplam Sipariş",
+    "totalOrdersSub": "Müşteriler veya AI tarafından üretilen siparişler"
+  },
+  "products": {
+    "title": "Ürünleri Yönet",
+    "add": "Yeni Ürün Ekle",
+    "name": "İsim",
+    "price": "Fiyat ($)",
+    "description": "Açıklama",
+    "noProducts": "Ürün bulunamadı. İlk ürününüzü yukarıdan ekleyin.",
+    "addButton": "Ekle"
+  },
+  "orders": {
+    "title": "Müşteri Siparişleri",
+    "orderId": "Sipariş ID",
+    "product": "Ürün",
+    "quantity": "Miktar",
+    "amount": "Tutar",
+    "status": "Durum",
+    "date": "Tarih",
+    "noOrders": "Henüz sipariş yok. AI burada sipariş oluşturacak."
+  },
+  "chat": {
+    "title": "AI Sohbet Simülatörü",
+    "subtitle": "Asistan akışınızı burada test edin",
+    "noMessages": "Asistan ile sohbete başlamak için yazın.",
+    "typeMessage": "Mesajınızı yazın...",
+    "send": "Gönder",
+    "typing": "Yapay zeka yazıyor...",
+    "error": "Sunucuya bağlanılamadı",
+    "noResponse": "Cevap yok",
+    "limit_reached": "Kullanım sınırına ulaşıldı. Lütfen paketinizi yükseltin."
+  },
+  "system": {
+    "title": "Sistem Ayarları",
+    "platform_name": "Platform Adı",
+    "support_phone": "Destek Telefonu",
+    "ai_provider": "Yapay Zeka Sağlayıcısı",
+    "free_tokens": "Ücretsiz Plan Jetonları",
+    "pro_tokens": "Pro Plan Jetonları",
+    "enterprise_tokens": "Kurumsal Jetonlar",
+    "save": "Ayarları Kaydet",
+    "saved": "Başarıyla kaydedildi"
+  }
+}

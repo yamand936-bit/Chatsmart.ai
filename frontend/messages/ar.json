@@ -1,0 +1,156 @@
+{
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "success": "نجاح",
+    "logout": "تسجيل الخروج",
+    "back": "رجوع",
+    "submit": "إرسال",
+    "cancel": "إلغاء",
+    "actions": "إجراءات",
+    "delete": "حذف",
+    "action": "إجراء",
+    "delete_confirm": "هل أنت متأكد من أنك تريد حذف هذا التاجر وجميع بياناته تماماً؟ لا يمكن التراجع عن هذا الإجراء."
+  },
+  "login": {
+    "title": "ChatSmart AI",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "failed": "فشل تسجيل الدخول"
+  },
+  "admin": {
+    "title": "لوحة تحكم المدير",
+    "businesses": "المتاجر المسجلة",
+    "createNew": "إضافة متجر جديد",
+    "ownerEmail": "بريد المالك",
+    "businessName": "اسم المتجر",
+    "id": "المعرّف",
+    "createdAt": "تاريخ الإنشاء",
+    "stats": {
+      "total_businesses": "إجمالي الأنشطة",
+      "active_businesses": "أنشطة نشطة",
+      "total_orders": "إجمالي الطلبات",
+      "total_tokens_used": "إجمالي الاستهلاك",
+      "ai_requests_today": "طلبات الذكاء الاصطناعي اليوم"
+    },
+    "table": {
+      "name": "الاسم",
+      "owner_email": "البريد الإلكتروني",
+      "business_type": "النوع",
+      "token_usage": "الاستهلاك",
+      "status": "الحالة",
+      "status_active": "نشط",
+      "status_inactive": "غير نشط",
+      "status_unknown": "غير معروف",
+      "no_businesses": "لا يوجد أنشطة تجارية.",
+      "edit": "تعديل",
+      "disable": "تعطيل",
+      "view_usage": "عرض الاستهلاك",
+      "configure": "إعدادات",
+      "update": "تحديث",
+      "settings": "الإعدادات",
+      "confirm_disable": "هل أنت متأكد من تعطيل هذا المتجر؟",
+      "confirm_enable": "هل أنت متأكد من تفعيل هذا المتجر؟",
+      "close": "إغلاق",
+      "update_success": "تم تحديث البيانات بنجاح!"
+    },
+    "create": {
+      "integrations_title": "الإضافات والمميزات",
+      "type_retail": "تجزئة",
+      "type_restaurant": "مطعم",
+      "type_services": "خدمات",
+      "business_name": "اسم النشاط التجاري",
+      "owner_name": "اسم المالك",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "phone_number": "رقم الهاتف",
+      "business_type": "نوع النشاط التجاري",
+      "telegram": "تيليغرام",
+      "whatsapp": "واتساب",
+      "instagram": "انستغرام",
+      "bot_token": "رمز البوت",
+      "webhook_secret": "سر الويب هوك",
+      "phone_number_id": "معرف الهاتف",
+      "access_token": "رمز الوصول",
+      "app_secret": "سر التطبيق",
+      "verify_token": "رمز التحقق",
+      "token_limit": "الحد الأقصى للتوكنز",
+      "monthly_quota": "الحصة الشهرية",
+      "success": "تم الإنشاء بنجاح!",
+      "error": "فشل الإنشاء."
+    },
+    "tabs": {
+      "businesses": "الأنشطة التجارية",
+      "create": "إنشاء نشاط",
+      "usage": "الاستهلاك",
+      "plans": "الباقات"
+    },
+    "usage": {
+      "title": "تحليلات الاستهلاك",
+      "subtitle": "ستظهر رسوم بيانية مفصلة للاستهلاك هنا."
+    },
+    "plans": {
+      "title": "باقات الاشتراك",
+      "subtitle": "اختر عملاً لترقية الباقة الخاصة به.",
+      "select_business_first": "يجب تحديد العمل أولاً",
+      "select_placeholder": "-- اختر العمل --",
+      "free": "المجانية",
+      "pro": "المتقدمة (Pro)",
+      "enterprise": "المؤسسات",
+      "upgrade": "ترقية الباقة"
+    }
+  },
+  "merchant": {
+    "title": "لوحة تحكم التاجر",
+    "overview": "نظرة عامة",
+    "products": "المنتجات",
+    "orders": "الطلبات",
+    "chat": "تجربة المحادثة",
+    "totalProducts": "إجمالي المنتجات",
+    "totalProductsSub": "المنتجات النشطة في الكتالوج",
+    "totalOrders": "إجمالي الطلبات",
+    "totalOrdersSub": "الطلبات الواردة من العملاء والذكاء الاصطناعي"
+  },
+  "products": {
+    "title": "إدارة المنتجات",
+    "add": "إضافة منتج جديد",
+    "name": "الاسم",
+    "price": "السعر ($)",
+    "description": "الوصف",
+    "noProducts": "لا يوجد منتجات، أضف منتجك الأول من الأعلى.",
+    "addButton": "إضافة"
+  },
+  "orders": {
+    "title": "طلبات العملاء",
+    "orderId": "رقم الطلب",
+    "product": "المنتج",
+    "quantity": "الكمية",
+    "amount": "القيمة",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "noOrders": "لم يتم استلام طلبات بعد. سيكتب الذكاء الاصطناعي طلبات العملاء هنا."
+  },
+  "chat": {
+    "title": "محاكي المساعد الذكي",
+    "subtitle": "اختبر مسار المساعد الذكي هنا",
+    "noMessages": "ابدأ الكتابة للتحدث مع مساعدك الذكي.",
+    "typeMessage": "اكتب رسالتك...",
+    "send": "إرسال",
+    "typing": "المساعد يكتب الآن...",
+    "error": "خطأ في الاتصال بالخادم",
+    "noResponse": "لا يوجد استجابة",
+    "limit_reached": "تم الوصول للحد الأقصى للاستهلاك. يرجى ترقية باقتحك."
+  },
+  "system": {
+    "title": "إعدادات النظام",
+    "platform_name": "اسم المنصة",
+    "support_phone": "هاتف الدعم",
+    "ai_provider": "مزود الذكاء الاصطناعي",
+    "free_tokens": "توكنز الباقة المجانية",
+    "pro_tokens": "توكنز باقة المحترفين",
+    "enterprise_tokens": "توكنز باقة الشركات",
+    "save": "حفظ الإعدادات",
+    "saved": "تم الحفظ بنجاح"
+  }
+}
