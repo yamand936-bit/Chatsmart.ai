@@ -16,5 +16,4 @@ class AIUsageLog(Base):
     total_tokens = Column(Integer)
 
     cost = Column(Float)
-
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None))

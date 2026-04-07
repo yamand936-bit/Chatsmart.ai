@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from app.db.session import engine
 
-from app.api.routers import auth, admin, merchant, chat, integrations, system, analytics
+from app.api.routers import auth, admin, merchant, chat, integrations, system, analytics, campaigns
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -53,8 +53,8 @@ app.add_middleware(
         for origin in settings.BACKEND_CORS_ORIGINS
     ] if settings.BACKEND_CORS_ORIGINS else [],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
 @app.middleware("http")
@@ -80,6 +80,7 @@ async def security_headers_middleware(request: Request, call_next):
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin System"])
 app.include_router(merchant.router, prefix="/api/merchant", tags=["Merchant System"])
+app.include_router(campaigns.router, prefix="/api/merchant/campaigns", tags=["Campaigns"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat Engine"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["Integrations"])
 app.include_router(system.router, prefix="/api/system", tags=["System Configuration"])

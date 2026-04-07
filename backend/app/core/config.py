@@ -33,11 +33,19 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
 
     # Intergrations Configuration Mode (mock | live)
-    INTEGRATIONS_MODE: str = "mock"
+    INTEGRATIONS_MODE: str = "live"
     
     # Telegram Integration (Global Fallbacks)
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_SECRET_TOKEN: str | None = None
+
+    # Meta Integration
+    META_APP_ID: str | None = None
+    META_APP_SECRET: str | None = None
+
+    # TikTok Integration
+    TIKTOK_CLIENT_KEY: str | None = None
+    TIKTOK_CLIENT_SECRET: str | None = None
 
     # Stripe
     STRIPE_SECRET_KEY: str | None = None

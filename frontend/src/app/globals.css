@@ -2,9 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    @apply bg-white text-slate-900 border-slate-300;
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
+  --primary-color: #2563eb;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -3,6 +3,7 @@ import "./globals.css";
 import HydrationGuard from "@/components/HydrationGuard";
 import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "ChatSmart AI",
@@ -28,10 +29,12 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={isRtl ? 'rtl' : 'ltr'}>
-      <body className={`antialiased font-sans flex flex-col h-screen overflow-hidden ${isRtl ? 'text-right' : 'text-left'}`}>
+      <body className={`antialiased font-sans flex flex-col min-h-screen ${isRtl ? 'text-right' : 'text-left'}`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <HydrationGuard>
-            {children}
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+              {children}
+            </ThemeProvider>
           </HydrationGuard>
         </NextIntlClientProvider>
       </body>

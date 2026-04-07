@@ -52,7 +52,7 @@ export default function LoginPage() {
           <label className="block text-sm font-medium text-slate-700 mb-1">{t('email')}</label>
           <input 
             type="email" 
-            className="w-full text-slate-800 border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full text-slate-800 bg-white border border-slate-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -62,13 +62,13 @@ export default function LoginPage() {
           <label className="block text-sm font-medium text-slate-700 mb-1">{t('password')}</label>
           <input 
             type="password" 
-            className="w-full text-slate-800 border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full text-slate-800 bg-white border border-slate-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </div>
-        <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+        <button type="submit" className="w-full bg-[var(--primary-color,#2563eb)] text-white p-2 flex items-center justify-center rounded-lg hover:opacity-90 font-medium transition shadow-sm">
           {t('signIn')}
         </button>
       </form>

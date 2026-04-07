@@ -38,15 +38,15 @@ export default function MerchantStatsBar() {
     <div className="bg-blue-900 border-b border-blue-800 text-blue-50 py-2 px-6 sticky top-0 z-20 shadow-sm text-sm">
       <div className="flex items-center justify-center gap-12 font-medium">
         <div className="flex items-center gap-2">
-          <span className="opacity-70">إجمالي طلبات اليوم:</span>
+          <span className="opacity-70">{t('stats_orders_today', { fallback: 'إجمالي طلبات اليوم:' })}</span>
           <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.orders_today}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="opacity-70">الرسائل النشطة:</span>
+          <span className="opacity-70">{t('stats_active_messages', { fallback: 'الرسائل النشطة:' })}</span>
           <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.active_messages}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="opacity-70">التوكنز المستهلكة:</span>
+          <span className="opacity-70">{t('stats_consumed_tokens', { fallback: 'التوكنز المستهلكة:' })}</span>
           <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.consumed_tokens.toLocaleString()}</span>
         </div>
       </div>

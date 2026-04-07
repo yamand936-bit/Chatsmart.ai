@@ -13,6 +13,7 @@ export default function MerchantDashboard() {
   });
   
   const t = useTranslations('merchant');
+  const tDash = useTranslations('dashboard');
 
   useEffect(() => {
     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/analytics`, { withCredentials: true })
@@ -39,15 +40,15 @@ export default function MerchantDashboard() {
   return (
     <div className="space-y-6">
        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-slate-800">نظرة عامة على الأداء</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{tDash('performance_overview', { fallback: 'نظرة عامة على الأداء' })}</h2>
           <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg shadow-sm font-medium transition text-sm print-hidden hidden md:block">
-              تصدير التقرير (PDF)
+              {tDash('export_pdf', { fallback: 'تصدير التقرير (PDF)' })}
           </button>
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-xl shadow border border-slate-100">
-             <h3 className="font-semibold text-lg text-slate-800 mb-6">معدل الطلبات في آخر 7 أيام</h3>
+             <h3 className="font-semibold text-lg text-slate-800 mb-6">{tDash('orders_last_7_days', { fallback: 'معدل الطلبات في آخر 7 أيام' })}</h3>
              <div className="h-80" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={data.sales_trend} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
@@ -56,19 +57,19 @@ export default function MerchantDashboard() {
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip 
-                      formatter={(value: any, name: string) => name === 'الأرباح ($)' ? `${Number(value).toFixed(2)}` : value}
+                      formatter={(value: any, name: string) => name === tDash('revenue', { fallback: 'الأرباح ($)' }) ? `${Number(value).toFixed(2)}` : value}
                       contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
                     />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="orders" name="عدد الطلبات" stroke="#2563eb" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
-                    <Line yAxisId="right" type="monotone" dataKey="revenue" name="الأرباح ($)" stroke="#10b981" strokeWidth={3} />
+                    <Line yAxisId="left" type="monotone" dataKey="orders" name={tDash('orders_count', { fallback: 'عدد الطلبات' })} stroke="#2563eb" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                    <Line yAxisId="right" type="monotone" dataKey="revenue" name={tDash('revenue', { fallback: 'الأرباح ($)' })} stroke="#10b981" strokeWidth={3} />
                   </LineChart>
                 </ResponsiveContainer>
              </div>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow border border-slate-100">
-             <h3 className="font-semibold text-lg text-slate-800 mb-6">توزيع الرسائل حسب القناة</h3>
+             <h3 className="font-semibold text-lg text-slate-800 mb-6">{tDash('messages_distribution', { fallback: 'توزيع الرسائل حسب القناة' })}</h3>
              {data.platform_distribution.length > 0 ? (
                  <div className="h-80" dir="ltr">
                     <ResponsiveContainer width="100%" height="100%">
@@ -78,7 +79,7 @@ export default function MerchantDashboard() {
                         <YAxis />
                         <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                         <Legend />
-                        <Bar dataKey="value" name="عدد الرسائل" radius={[4, 4, 0, 0]} maxBarSize={60}>
+                        <Bar dataKey="value" name={tDash('messages_count', { fallback: 'عدد الرسائل' })} radius={[4, 4, 0, 0]} maxBarSize={60}>
                           {data.platform_distribution.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
@@ -88,7 +89,7 @@ export default function MerchantDashboard() {
                  </div>
              ) : (
                 <div className="h-80 flex items-center justify-center text-slate-400">
-                    لا توجد رسائل مسجلة بعد.
+                    {tDash('no_messages_yet', { fallback: 'لا توجد رسائل مسجلة بعد.' })}
                 </div>
              )}
           </div>

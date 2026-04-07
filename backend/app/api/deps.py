@@ -5,10 +5,11 @@ from app.db.session import get_db
 from app.core.config import settings
 from pydantic import BaseModel
 import uuid
-from redis.asyncio import Redis
+from redis.asyncio import Redis, ConnectionPool
 
 # Redis client for token blacklisting and rate limiting
-redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+pool = ConnectionPool.from_url(settings.REDIS_URL, decode_responses=True, max_connections=50)
+redis_client = Redis(connection_pool=pool)
 
 class TokenPayload(BaseModel):
     sub: str
@@ -17,7 +18,14 @@ class TokenPayload(BaseModel):
     jti: str | None = None
 
 async def get_current_user_payload(request: Request) -> TokenPayload:
-    token = request.cookies.get("access_token")
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    
+    if not token:
+        token = request.cookies.get("access_token")
+        
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

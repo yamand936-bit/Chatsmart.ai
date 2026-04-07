@@ -15,6 +15,9 @@ ALLOWED_KEYS = [
     "free_tokens",
     "pro_tokens",
     "enterprise_tokens",
+    "free_model",
+    "pro_model",
+    "enterprise_model",
     "custom_ai_endpoint",
 ]
 

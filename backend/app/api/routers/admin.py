@@ -5,13 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, delete
 from sqlalchemy.orm import selectinload
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.business import Business
-from app.models.domain import Order, UsageLog
+from app.models.domain import Order, UsageLog, Message, SystemErrorLog
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, create_access_token
 from app.services.stripe_service import create_checkout_session
 from app.config.plans import PLANS
 from app.core.config import settings
@@ -66,19 +66,28 @@ async def get_businesses_test(
     db: AsyncSession = Depends(get_db)
 ):
     total = await db.scalar(select(func.count()).select_from(Business))
+    
+    avg_resp_subquery = (
+        select(Message.business_id, func.avg(Message.response_time).label("avg_resp_time"))
+        .where(Message.sender_type == "assistant")
+        .group_by(Message.business_id)
+        .subquery()
+    )
+
     result = await db.execute(
-        select(Business, func.max(User.email), func.sum(UsageLog.tokens_used))
+        select(Business, func.max(User.email), func.sum(UsageLog.tokens_used), avg_resp_subquery.c.avg_resp_time)
         .join(User, Business.id == User.business_id)
         .outerjoin(UsageLog, Business.id == UsageLog.business_id)
+        .outerjoin(avg_resp_subquery, Business.id == avg_resp_subquery.c.business_id)
         .where(User.role == "merchant")
-        .group_by(Business.id)
+        .group_by(Business.id, avg_resp_subquery.c.avg_resp_time)
         .order_by(Business.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
     rows = result.all()
     data = []
-    for b, e, t_used in rows:
+    for b, e, t_used, avg_time in rows:
         data.append({
             "id": b.id,
             "name": b.name,
@@ -87,8 +96,10 @@ async def get_businesses_test(
             "token_limit": b.token_limit,
             "monthly_quota": b.monthly_quota,
             "token_usage": t_used or 0,
+            "plan_name": b.plan_name,
             "created_at": b.created_at,
-            "owner_email": e
+            "owner_email": e,
+            "avg_response_time": float(avg_time) if avg_time else 0.0
         })
     return {"status": "ok", "data": data, "total": total}
 
@@ -100,19 +111,28 @@ async def get_businesses(
     admin: dict = Depends(get_current_admin)
 ):
     total = await db.scalar(select(func.count()).select_from(Business))
+    
+    avg_resp_subquery = (
+        select(Message.business_id, func.avg(Message.response_time).label("avg_resp_time"))
+        .where(Message.sender_type == "assistant")
+        .group_by(Message.business_id)
+        .subquery()
+    )
+
     result = await db.execute(
-        select(Business, func.max(User.email), func.sum(UsageLog.tokens_used))
+        select(Business, func.max(User.email), func.sum(UsageLog.tokens_used), avg_resp_subquery.c.avg_resp_time)
         .join(User, Business.id == User.business_id)
         .outerjoin(UsageLog, Business.id == UsageLog.business_id)
+        .outerjoin(avg_resp_subquery, Business.id == avg_resp_subquery.c.business_id)
         .where(User.role == "merchant")
-        .group_by(Business.id)
+        .group_by(Business.id, avg_resp_subquery.c.avg_resp_time)
         .order_by(Business.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
     rows = result.all()
     data = []
-    for b, e, t_used in rows:
+    for b, e, t_used, avg_time in rows:
         data.append({
             "id": b.id,
             "name": b.name,
@@ -121,8 +141,10 @@ async def get_businesses(
             "token_limit": b.token_limit,
             "monthly_quota": b.monthly_quota,
             "token_usage": t_used or 0,
+            "plan_name": b.plan_name,
             "created_at": b.created_at,
-            "owner_email": e
+            "owner_email": e,
+            "avg_response_time": float(avg_time) if avg_time else 0.0
         })
     return {"status": "ok", "data": data, "total": total}
 
@@ -181,6 +203,104 @@ async def update_business_status(business_id: uuid.UUID, data: UpdateBusinessSta
     await db.commit()
     return {"status": "ok", "message": f"Business status updated to {data.status}"}
 
+@router.post("/impersonate/{business_id}")
+async def impersonate_merchant(business_id: uuid.UUID, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    merchant_user_result = await db.execute(select(User).where(User.business_id == business_id, User.role == "merchant"))
+    merchant_user = merchant_user_result.scalars().first()
+    
+    if not merchant_user:
+        raise HTTPException(status_code=404, detail="No merchant user found for this business")
+        
+    access_token = create_access_token(
+        subject=str(merchant_user.id),
+        role="merchant",
+        business_id=str(merchant_user.business_id)
+    )
+    return {"status": "ok", "token": access_token}
+
+@router.get("/logs")
+async def get_system_logs(limit: int = 100, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    from app.models.domain import SystemErrorLog
+    result = await db.execute(
+        select(SystemErrorLog, Business.name)
+        .outerjoin(Business, SystemErrorLog.business_id == Business.id)
+        .order_by(SystemErrorLog.timestamp.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    data = []
+    for log, b_name in rows:
+        data.append({
+            "id": str(log.id),
+            "business_name": b_name or "System",
+            "error_type": log.error_type,
+            "message": log.message,
+            "timestamp": log.timestamp.isoformat()
+        })
+    return {"status": "ok", "data": data}
+
+
+@router.get("/alerts")
+async def get_alerts(db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    alerts = []
+    
+    # 1. Quota Usage >= 90%
+    businesses_res = await db.execute(
+        select(Business, func.sum(UsageLog.tokens_used))
+        .outerjoin(UsageLog, Business.id == UsageLog.business_id)
+        .group_by(Business.id)
+    )
+    for b, used in businesses_res.all():
+        used = used or 0
+        limit = b.token_limit or 100000
+        if limit > 0 and used >= limit * 0.9:
+            alerts.append({
+                "id": str(uuid.uuid4()),
+                "type": "quota_warning",
+                "message": f"Business '{b.name}' has reached {(used/limit)*100:.1f}% of quota.",
+                "business_id": str(b.id),
+                "severity": "high",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+    # 2. > 5 Errors in the last hour
+    one_hour_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
+    errors_res = await db.execute(
+        select(Business, func.count(SystemErrorLog.id))
+        .join(SystemErrorLog, Business.id == SystemErrorLog.business_id)
+        .where(SystemErrorLog.timestamp >= one_hour_ago)
+        .group_by(Business.id)
+        .having(func.count(SystemErrorLog.id) >= 5)
+    )
+    for b, count in errors_res.all():
+         alerts.append({
+             "id": str(uuid.uuid4()),
+             "type": "error_surge",
+             "message": f"Business '{b.name}' has {count} errors in the last hour.",
+             "business_id": str(b.id),
+             "severity": "critical",
+             "timestamp": datetime.now(timezone.utc).isoformat()
+         })
+         
+    # 3. New businesses created in the last 24 hours
+    one_day_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    new_b_res = await db.execute(
+        select(Business).where(Business.created_at >= one_day_ago)
+    )
+    for b in new_b_res.scalars().all():
+         alerts.append({
+             "id": str(uuid.uuid4()),
+             "type": "new_tenant",
+             "message": f"New business registered: '{b.name}'.",
+             "business_id": str(b.id),
+             "severity": "info",
+             "timestamp": b.created_at.isoformat()
+         })
+         
+    # sort alerts by timestamp desc
+    alerts.sort(key=lambda x: x["timestamp"], reverse=True)
+    return {"status": "ok", "data": alerts}
+
 
 @router.post("/businesses")
 async def create_business(data: CreateBusinessRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
@@ -212,6 +332,25 @@ class FeatureConfigRequest(BaseModel):
     is_active: bool
     config: dict
 
+class ValidateTelegramRequest(BaseModel):
+    bot_token: str
+
+@router.post("/businesses/{business_id}/features/telegram/validate")
+async def validate_telegram_token(business_id: uuid.UUID, data: ValidateTelegramRequest, db: AsyncSession = Depends(get_db)):
+    """Verifies a Telegram bot token via Telegram's getMe API"""
+    url = f"https://api.telegram.org/bot{data.bot_token}/getMe"
+    import httpx
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get(url, timeout=5.0)
+            if res.status_code == 200:
+                bot_data = res.json()
+                if bot_data.get("ok"):
+                    return {"status": "success", "message": "Valid Token", "bot_username": bot_data["result"].get("username")}
+            return {"status": "error", "message": "Invalid Bot Token"}
+        except Exception as e:
+            return {"status": "error", "message": "Failed to connect to Telegram"}
+
 @router.post("/businesses/{business_id}/features/{feature_type}")
 async def configure_business_feature(
     business_id: uuid.UUID,
@@ -223,7 +362,7 @@ async def configure_business_feature(
     """Admin configures an integration feature (e.g., telegram, whatsapp, instagram) for a business."""
     from app.models.business import BusinessFeature
     
-    if feature_type not in ["whatsapp", "telegram", "instagram"]:
+    if feature_type not in ["whatsapp", "telegram", "instagram", "tiktok"]:
         raise HTTPException(status_code=400, detail="Invalid feature_type")
 
     # Check if business exists

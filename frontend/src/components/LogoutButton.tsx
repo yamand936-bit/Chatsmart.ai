@@ -2,9 +2,12 @@
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
 
+import { useTranslations } from 'next-intl';
+
 export default function LogoutButton() {
   const logout = useAuthStore(state => state.logout);
   const router = useRouter();
+  const t = useTranslations('layout');
 
   const handleLogout = async () => {
     await logout();
@@ -16,7 +19,7 @@ export default function LogoutButton() {
       onClick={handleLogout}
       className="text-slate-500 hover:text-red-500 font-medium transition"
     >
-      Sign Out
+      {t('signOut') || 'Sign Out'}
     </button>
   );
 }

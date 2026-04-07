@@ -6,12 +6,19 @@ import { useTranslations } from 'next-intl';
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const t = useTranslations('orders');
+  const tCommon = useTranslations('common');
 
   useEffect(() => {
     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/orders`, { withCredentials: true })
       .then(res => setOrders(res.data.data || []))
       .catch(console.error);
   }, []);
+
+  const getStatusText = (status: string) => {
+    if (!status) return 'N/A';
+    const s = status.toLowerCase();
+    return tCommon(s as any) || status;
+  };
 
   return (
     <div className="flex flex-col h-full gap-6">
@@ -48,7 +55,7 @@ export default function OrdersPage() {
                 <td className="p-4 font-medium text-green-600">${Number(o.total_amount).toFixed(2)}</td>
                 <td className="p-4 text-slate-800">
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs uppercase font-bold tracking-wider">
-                    {o.status}
+                    {getStatusText(o.status)}
                   </span>
                 </td>
                 <td className="p-4 text-slate-600 text-sm">{new Date(o.created_at).toLocaleString()}</td>

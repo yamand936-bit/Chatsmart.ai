@@ -5,14 +5,15 @@ from app.core.config import settings
 class GeminiService:
 
     @staticmethod
-    async def generate(messages: list):
+    async def generate(messages: list, model: str = "gemini-1.5-pro"):
 
         if not settings.GEMINI_API_KEY:
             raise Exception("Gemini API key missing")
 
         genai.configure(api_key=settings.GEMINI_API_KEY)
 
-        model = genai.GenerativeModel("gemini-pro")
+        # Inject visionary content or text content 
+        genai_model = genai.GenerativeModel(model)
 
         # Gemini does not use a structured messages API — flatten to a single prompt.
         parts = []
@@ -32,7 +33,7 @@ class GeminiService:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            model.generate_content,
+            genai_model.generate_content,
             prompt
         )
 

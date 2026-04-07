@@ -1,10 +1,14 @@
 import uuid
+import time
+import json
+import logging
+logger = logging.getLogger(__name__)
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from app.models.domain import Customer, Conversation, Message, Product, Order, UsageLog
+from app.models.domain import Customer, Conversation, Message, Product, Order, UsageLog, Appointment
 from app.models.business import Business
 from app.services.ai_engine import AIEngineService
 from app.config.plans import PLANS
@@ -13,14 +17,15 @@ from app.models.ai_usage_log import AIUsageLog
 from app.services.token_service import TokenService
 from app.services.cost_service import CostService
 import re
+import time
 
 def detect_language(text: str) -> str:
     if not text:
         return "en"
+    if re.search(r'(?i)[çğışöüÇĞİIŞÖÜ]|\b(merhaba|selam|nasılsın|iyi|evet|hayır|lütfen|teşekkür|ondan|istiyorum|sağol|tamam)\b', text):
+        return "tr"
     if re.search(r'[\u0600-\u06FF\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', text):
         return "ar"
-    if re.search(r'[çğışöüÇĞİIŞÖÜ]', text):
-        return "tr"
     return "en"
 
 
@@ -30,6 +35,8 @@ async def process_chat_core(
     customer_platform: str,
     external_id: str,
     content: str,
+    media_url: str = None,
+    media_b64: str = None
 ) -> tuple[str, str, str, str]:
     """
     Single source of truth for AI chat processing.
@@ -48,11 +55,23 @@ async def process_chat_core(
     customer = result.scalar_one_or_none()
 
     if not customer:
+        
+        is_comment = False
+        if content.startswith("[COMMENT:"):
+            is_comment = True
+
         try:
+            initial_tags = []
+            if customer_platform == "tiktok":
+                initial_tags.append("platform:tiktok")
+            if is_comment:
+                initial_tags.append("source:comment")
+                
             customer = Customer(
                 business_id=business_id,
                 platform=customer_platform,
                 external_id=external_id,
+                tags=initial_tags
             )
             db.add(customer)
             await db.flush()
@@ -67,6 +86,23 @@ async def process_chat_core(
                 )
             )
             customer = result.scalar_one()
+
+    # Ensure tags are dynamically updated for returning customers
+    is_comment = content.startswith("[COMMENT:")
+    tags_modified = False
+    
+    current_tags = list(customer.tags) if customer.tags else []
+    if customer_platform == "tiktok" and "platform:tiktok" not in current_tags:
+        current_tags.append("platform:tiktok")
+        tags_modified = True
+    if is_comment and "source:comment" not in current_tags:
+        current_tags.append("source:comment")
+        tags_modified = True
+        
+    if tags_modified:
+        customer.tags = current_tags
+        db.add(customer)
+        await db.flush()
 
     # ── 2. Find most-recent Conversation (avoids MultipleResultsFound) ───────
     result = await db.execute(
@@ -89,12 +125,12 @@ async def process_chat_core(
         db.add(conversation)
         await db.flush()
 
-    # ── 3. Persist the incoming user message ──────────────────────────────────
     user_msg = Message(
         business_id=business_id,
         conversation_id=conversation.id,
         sender_type="user",
         content=content,
+        media_url=media_url
     )
     db.add(user_msg)
     await db.flush()
@@ -124,20 +160,29 @@ async def process_chat_core(
         select(Product).where(
             Product.business_id == business_id,
             Product.is_active == True,
-        )
+        ).limit(50)
     )
     products = p_res.scalars().all()
 
     # ── 5.5. Token Limit Enforcement (monthly) ───────────────────────────────
     start_of_month = date.today().replace(day=1)
 
-    u_res = await db.execute(
-        select(func.sum(UsageLog.tokens_used)).where(
-            UsageLog.business_id == business_id,
-            UsageLog.date_logged >= start_of_month,
+    import json
+    from app.api.deps import redis_client
+    cache_key = f"token_usage:{business_id}:{start_of_month.isoformat()}"
+    cached_tokens = await redis_client.get(cache_key)
+    
+    if cached_tokens:
+        tokens_used = int(cached_tokens)
+    else:
+        u_res = await db.execute(
+            select(func.sum(UsageLog.tokens_used)).where(
+                UsageLog.business_id == business_id,
+                UsageLog.date_logged >= start_of_month,
+            )
         )
-    )
-    tokens_used = u_res.scalar() or 0
+        tokens_used = u_res.scalar() or 0
+        await redis_client.setex(cache_key, 60, str(tokens_used))
 
     plan_limit_str = await SettingsService.get(db, f"{business.plan_name}_tokens")
     plan_limit = int(plan_limit_str) if plan_limit_str else None
@@ -159,17 +204,26 @@ async def process_chat_core(
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
     ai_engine = AIEngineService(
+        business_id=str(business.id),
         business_type=business.business_type, 
         products=products, 
         language=detected_lang,
-        ai_tone=business.ai_tone
+        ai_tone=business.ai_tone,
+        knowledge_base=business.knowledge_base,
+        bank_details=business.bank_details,
+        is_tiktok_comment=is_comment,
+        platform=customer_platform
     )
 
     provider = "unknown"
     model = "unknown"
 
+    resp_time = None
     try:
-        raw_res = await ai_engine.get_response(db, content, conversation)
+        start_time = time.time()
+        raw_res = await ai_engine.get_response(db, content, conversation, media_b64=media_b64, user_msg_id=user_msg.id)
+        resp_time = time.time() - start_time
+        
         ai_intent = ai_engine.validate_intent(raw_res["ai_output"])
         
         provider = raw_res["provider"]
@@ -177,15 +231,25 @@ async def process_chat_core(
 
         # Set defaults from AI response FIRST — then override on error paths only.
         ai_msg_content = ai_intent.response
+        if getattr(ai_intent, 'public_reply', None):
+            import json
+            ai_msg_content = json.dumps({
+                "public_reply": ai_intent.public_reply,
+                "private_dm": getattr(ai_intent, 'private_dm', '')
+            })
+            
         intent_value = ai_intent.intent
+
+        if getattr(ai_intent, 'lead_priority', None) and ai_intent.lead_priority != "None":
+            conversation.lead_priority = ai_intent.lead_priority
+            db.add(conversation)
 
         # ── 7. Intent-specific processing ─────────────────────────────────────
         if ai_intent.intent == "create_order":
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
 
             if not product_id_str:
-                # AI did not identify a product — do not create order.
-                ai_msg_content = "I need to know exactly which product you want. Could you please clarify?"
+                # AI did not identify a product — do not create order, let AI response pass through
                 intent_value = "none"
             else:
                 try:
@@ -209,12 +273,59 @@ async def process_chat_core(
                         db.add(new_order)
                         # ai_msg_content and intent_value stay as the AI set them.
                     else:
-                        ai_msg_content = "I could not find that product in our current catalog. Please try again."
+                        ai_msg_content = "عذراً، لم أتمكن من العثور على هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
                         intent_value = "none"
 
                 except ValueError:
                     # AI returned a non-UUID string for product_id.
-                    ai_msg_content = "There was an error identifying the product. Please describe what you want again."
+                    ai_msg_content = "عذراً، حدث خطأ في تحديد المنتج. يرجى إعادة المحاولة." if detected_lang in ["ar", "Arabic"] else ("Ürünü belirlerken bir hata oluştu. Lütfen tekrar deneyin." if detected_lang in ["tr", "Turkish"] else "There was an error identifying the product.")
+                    intent_value = "error"
+
+        elif ai_intent.intent == "book_appointment":
+            product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
+            appointment_time = ai_intent.data.get("appointment_time") if ai_intent.data else None
+            
+            if not product_id_str or not appointment_time:
+                # Let the AI's natural follow-up question pass to the user
+                intent_value = "none"
+            else:
+                try:
+                    target_pid = uuid.UUID(product_id_str)
+                    matched_product = next(
+                        (p for p in products if p.id == target_pid), None
+                    )
+                    
+                    if matched_product and matched_product.item_type == "service":
+                        from dateutil import parser
+                        try:
+                            start_dt = parser.parse(appointment_time)
+                            end_dt = start_dt
+                            if matched_product.duration:
+                                from datetime import timedelta
+                                end_dt = start_dt + timedelta(minutes=matched_product.duration)
+                        except Exception:
+                            start_dt = None
+                            
+                        if start_dt:
+                            new_booking = Appointment(
+                                business_id=business_id,
+                                customer_id=customer.id,
+                                status="confirmed",
+                                title=f"{customer.name or 'Customer'} - {matched_product.name}",
+                                start_time=start_dt,
+                                end_time=end_dt,
+                                notes=f"Booked via AI Chat. Service: {matched_product.name}"
+                            )
+                            db.add(new_booking)
+                        else:
+                            ai_msg_content = "عذراً، لم أتمكن من فهم صيغة التاريخ والوقت." if detected_lang in ["ar", "Arabic"] else ("Tarih ve saat formatını anlayamadım." if detected_lang in ["tr", "Turkish"] else "I could not understand the date and time format you provided.")
+                            intent_value = "error"
+                    else:
+                        ai_msg_content = "عذراً، لم أتمكن من العثور على هذه الخدمة في الكتالوج." if detected_lang in ["ar", "Arabic"] else ("Kataloğumuzda bu hizmeti bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that service in our catalog.")
+                        intent_value = "none"
+                        
+                except ValueError:
+                    ai_msg_content = "حدث خطأ أثناء تحديد الخدمة." if detected_lang in ["ar", "Arabic"] else ("Hizmeti belirlerken bir hata oluştu." if detected_lang in ["tr", "Turkish"] else "There was an error identifying the service.")
                     intent_value = "error"
 
         elif ai_intent.intent == "handoff_human":
@@ -227,18 +338,19 @@ async def process_chat_core(
             ai_msg_content = f"⚠️ Support Required\n\n📞 {support_phone}"
             intent_value = "technical_support"
 
-        # Language Failsafe
-        resp_lang = detect_language(ai_msg_content)
-        if resp_lang != detected_lang and intent_value == "none":
-            if detected_lang == "ar":
-                ai_msg_content = "أرجو إعادة صياغة طلبك لو سمحت"
-            elif detected_lang == "tr":
-                ai_msg_content = "Lütfen isteğinizi yeniden ifade edin"
-            else:
-                ai_msg_content = "Please rephrase your request"
-            intent_value = "none"
+        # Let AI handle the language fluidity naturally without overriding
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"AI processing failed: {e}", exc_info=True)
+        try:
+            error_log = SystemErrorLog(
+                business_id=business_id,
+                error_type="ai_error",
+                message=str(e),
+            )
+            db.add(error_log)
+        except Exception:
+            pass
         ai_msg_content = "Something went wrong on our end. Please try again in a moment."
         intent_value = "error"
 
@@ -248,6 +360,7 @@ async def process_chat_core(
         conversation_id=conversation.id,
         sender_type="assistant",
         content=ai_msg_content,
+        response_time=resp_time,
     )
     db.add(assistant_msg)
     
@@ -293,5 +406,16 @@ async def process_chat_core(
         db.add(analytics_log)
 
     await db.commit()
+
+    # ── 11. Trigger Auto-Tagging Async ─────────────────────────────────────────
+    import asyncio
+    from app.services.ai_tagging import auto_tag_customer
+    from app.db.session import async_session_maker
+    
+    async def run_tagger(cid, c_id):
+        async with async_session_maker() as session:
+            await auto_tag_customer(session, str(cid), str(c_id))
+            
+    asyncio.create_task(run_tagger(customer.id, conversation.id))
 
     return (ai_msg_content, intent_value, str(user_msg.id), str(conversation.id))

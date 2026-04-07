@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 interface User {
   id: string;
@@ -25,15 +26,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     axios.defaults.withCredentials = true;
   },
   
-  logout: () => {
-    set({ user: null, isHydrated: true });
-    (async () => {
-      try {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {}, { withCredentials: true });
-      } catch(err) {
-        console.error("Logout failed", err);
-      }
-    })();
+  logout: async () => {
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {}, { withCredentials: true });
+    } catch(err) {
+      console.error("Logout failed", err);
+    } finally {
+      set({ user: null, isHydrated: true });
+    }
   },
 
   fetchMe: async () => {
@@ -49,18 +49,74 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 // GLOBAL INTERCEPTORS
 if (typeof window !== "undefined") {
+  // Capture impersonate token if present
+  const params = new URLSearchParams(window.location.search);
+  const impersonateToken = params.get('impersonate_token');
+  if (impersonateToken) {
+    sessionStorage.setItem('impersonate_token', impersonateToken);
+    // Cleanup URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  axios.interceptors.request.use((config) => {
+    const token = sessionStorage.getItem('impersonate_token');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    if (token && config.url?.startsWith(apiUrl)) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+
+  let isRefreshing = false;
+  let refreshSubscribers: any[] = [];
+
+  const onRefreshed = () => {
+    refreshSubscribers.map(cb => cb());
+  };
+
+  const subscribeTokenRefresh = (cb: any) => {
+    refreshSubscribers.push(cb);
+  };
+
   axios.interceptors.response.use(
     (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        // Suppress 401 redirect loop if we're naturally fetching auth or already on login
+    async (error) => {
+      const originalRequest = error.config;
+      
+      if (error.response?.status === 401 && !originalRequest._retry) {
         if (window.location.pathname !== '/login') {
-          useAuthStore.getState().logout();
-          window.location.href = '/login';
+
+            if (isRefreshing) {
+              return new Promise(resolve => {
+                subscribeTokenRefresh(() => {
+                  resolve(axios(originalRequest));
+                });
+              });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+              // Attempt to refresh token silently
+              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {}, { withCredentials: true });
+              isRefreshing = false;
+              onRefreshed();
+              refreshSubscribers = [];
+              return axios(originalRequest);
+            } catch (refreshError) {
+              isRefreshing = false;
+              refreshSubscribers = [];
+              sessionStorage.removeItem('impersonate_token');
+              useAuthStore.getState().logout();
+              window.location.href = '/login';
+              return Promise.reject(refreshError);
+            }
         }
       }
+      
       if (error.response?.status >= 500) {
-        alert("System error encountered. Our team has been notified.");
+        toast.error("System error encountered. Our team has been notified.");
       }
       return Promise.reject(error);
     }

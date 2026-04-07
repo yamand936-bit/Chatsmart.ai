@@ -12,7 +12,9 @@
     "action": "İşlem",
     "delete_confirm": "Bu işletmeyi ve tüm verilerini tamamen silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
     "edit": "Düzenle",
-    "save": "Değişiklikleri Kaydet"
+    "save": "Değişiklikleri Kaydet",
+    "add": "Ekle",
+    "pending": "Bekliyor"
   },
   "login": {
     "title": "ChatSmart AI",
@@ -55,13 +57,16 @@
       "confirm_disable": "Bu işletmeyi devre dışı bırakmak istediğinize emin misiniz?",
       "confirm_enable": "Bu işletmeyi etkinleştirmek istediğinize emin misiniz?",
       "close": "Kapat",
-      "update_success": "İşletme başarıyla güncellendi!"
+      "update_success": "İşletme başarıyla güncellendi!",
+      "impersonate": "Satıcı Olarak Giriş Yap",
+      "connection_status": "Bağlantı Durumu"
     },
     "create": {
       "integrations_title": "Entegrasyonlar ve Özellikler",
-      "type_retail": "Perakende",
+      "type_retail": "Satış",
       "type_restaurant": "Restoran",
       "type_services": "Hizmetler",
+      "type_booking": "Rezervasyon",
       "business_name": "İşletme Adı",
       "owner_name": "Kurucu Adı",
       "email": "E-posta",
@@ -86,11 +91,47 @@
       "businesses": "İşletmeler",
       "create": "İşletme Oluştur",
       "usage": "Kullanım",
-      "plans": "Paketler"
+      "plans": "Paketler",
+      "logs": "Hata Kayıtları",
+      "settings": "Ayarlar"
+    },
+    "economic": {
+      "cost": "Maliyet",
+      "profit": "Net Kâr",
+      "total_tokens": "Toplam Token"
+    },
+    "logs": {
+      "title": "Sistem Hata Kayıtları",
+      "subtitle": "Tüm işletmelerdeki sistem hatalarını ve API kesintilerini izleyin.",
+      "search_placeholder": "İşletme adına göre ara...",
+      "timestamp": "Zaman Damgası",
+      "business": "İşletme",
+      "error_type": "Hata Türü",
+      "message": "Mesaj",
+      "no_logs": "Hata bulunmadı."
     },
     "usage": {
       "title": "Kullanım Analizi",
       "subtitle": "Detaylı kullanım grafikleri burada görünecek."
+    },
+    "plans": {
+      "title": "Abonelik Planları",
+      "subtitle": "Yükseltme için bir mağaza seçin.",
+      "pro": "Pro",
+      "enterprise": "Kurumsal",
+      "free": "Ücretsiz",
+      "select_business_first": "Önce mağaza seçin",
+      "upgrade": "Yükselt"
+    },
+    "alerts": {
+      "title": "Sistem Uyarıları",
+      "quota_warning": "Kota Uyarısı"
+    },
+    "performance": {
+      "speed": "Ort. Yanıt Süresi"
+    },
+    "forecast": {
+      "expected": "Beklenen Kâr (+15%)"
     }
   },
   "merchant": {
@@ -99,19 +140,39 @@
     "products": "Ürünler",
     "orders": "Siparişler",
     "chat": "Sohbet Testi",
+    "campaigns": "Akıllı Kampanyalar",
+    "calendar": "AI Takvim",
+    "calendar_desc": "Randevularınızı ve rezervasyonlarınızı görsel olarak yönetin. Yeniden planlamak için sürükleyip bırakın.",
+    "sync_badge": "Akıllı Senkronizasyon",
+    "sync_upload_label": "1. Randevu Dosyası Yükle (Excel/CSV)",
+    "sync_download_booking": "Randevu Şablonunu İndir",
+    "sync_export_appointments": "Randevuları Dışa Aktar (Excel)",
+    "sync_cloud_label": "2. Google E-Tablolar ile Senkronize Et",
+    "sync_button": "Şimdi Senkronize Et",
+    "enter_link": "Lütfen önce Google E-Tablolar bağlantısını girin",
+    "sync_success": "Takvim ve randevular başarıyla senkronize edildi!",
+    "sync_error": "Senkronizasyon sırasında hata oluştu. Lütfen dosyanızı kontrol edin.",
     "totalProducts": "Toplam Ürün",
     "totalProductsSub": "Kataloğunuzdaki aktif ürünler",
     "totalOrders": "Toplam Sipariş",
     "totalOrdersSub": "Müşteriler veya AI tarafından üretilen siparişler",
-    "orders_count": "{count, plural, =0 {Sipariş yok} one {# sipariş} other {# sipariş}}"
+    "orders_count": "{count, plural, =0 {Sipariş yok} one {# sipariş} other {# sipariş}}",
+    "stats_orders_today": "Bugünkü Toplam Siparişler:",
+    "stats_active_messages": "Aktif Mesajlar:",
+    "stats_consumed_tokens": "Tüketilen Jetonlar:"
   },
   "products": {
     "title": "Ürünleri Yönet",
     "add": "Yeni Ürün Ekle",
+    "addNew": "Yeni Ürün Ekle",
     "name": "İsim",
     "price": "Fiyat ($)",
     "description": "Açıklama",
     "noProducts": "Ürün bulunamadı. İlk ürününüzü yukarıdan ekleyin.",
+    "cards": {
+      "buy_now": "Şimdi Al",
+      "book_now": "Şimdi Rezervasyon Yap"
+    },
     "addButton": "Ekle",
     "edit_product": "Ürünü Düzenle",
     "edit_success": "Ürün başarıyla güncellendi!",
@@ -119,7 +180,18 @@
     "image_col": "Resim",
     "no_image": "Resim Yok",
     "empty_title": "Yapay zeka satışlarını etkinleştirmek için ilk ürününüzü ekleyin",
-    "empty_desc": "Gösterilecek ürün yok. Yapay zeka asistanının müşterilerinize önermesi ve satması için ürünlerinizi buraya ekleyin."
+    "empty_desc": "Gösterilecek ürün yok. Yapay zeka asistanının müşterilerinize önermesi ve satması için ürünlerinizi buraya ekleyin.",
+    "sync_badge": "Gelişmiş Senkronizasyon",
+    "sync_title": "Ürünleri Senkronize Et (Excel / Google Sheets)",
+    "sync_desc": "İş türünüzü seçin ve %100 uyumlu şablonu indirin.",
+    "sync_download_physical": "Fiziksel Ürün Şablonunu İndir",
+    "sync_download_booking": "Randevu Şablonunu İndir",
+    "sync_upload_label": "Sonraki adım: Dosya Yükle",
+    "sync_cloud_label": "Doğrudan Paylaşım Bağlantısı",
+    "sync_button": "Bağlantıyı Senkronize Et",
+    "sync_loading": "Okunuyor...",
+    "sync_or": "VEYA",
+    "sync_note": "Not: Bulut klasörü kullanıyorsanız başarılı senkronizasyon için \"Bağlantıya sahip herkes\" seçeneğini seçin."
   },
   "orders": {
     "title": "Müşteri Siparişleri",
@@ -167,7 +239,12 @@
     "qr_prices": "Fiyat sor",
     "qr_catalog": "Katalog göster",
     "qr_discounts": "İndirim var mı?",
-    "qr_support": "Müşteri hizmetlerine bağlan"
+    "qr_support": "Müşteri hizmetlerine bağlan",
+    "inbox_title": "Gelen Kutusu (Inbox)",
+    "inbox_desc": "Öncelikler YZ ile filtrelendi",
+    "simulator_title": "Simülatör",
+    "simulator_badge": "Canlı",
+    "simulator_desc": "YZ yanıtlarını burada test edin"
   },
   "system": {
     "title": "Sistem Ayarları",
@@ -177,6 +254,9 @@
     "free_tokens": "Ücretsiz Plan Jetonları",
     "pro_tokens": "Pro Plan Jetonları",
     "enterprise_tokens": "Kurumsal Jetonlar",
+    "free_model": "Ücretsiz Yapay Zeka Modeli",
+    "pro_model": "Pro Yapay Zeka Modeli",
+    "enterprise_model": "Kurumsal Yapay Zeka Modeli",
     "save": "Ayarları Kaydet",
     "saved": "Başarıyla kaydedildi"
   },
@@ -194,11 +274,50 @@
     "tone_friendly": "Arkadaşça",
     "tone_sales": "Satış odaklı",
     "tone_updating": "Ton güncelleniyor...",
-    "tone_updated": "Ton başarıyla güncellendi!"
+    "tone_updated": "Ton başarıyla güncellendi!",
+    "kb_title": "Bilgi Bankası (Knowledge Base)",
+    "kb_desc": "Botun çalışma saatleri, iade politikası gibi iş politikalarını öğrenmesini sağlayın.",
+    "bank_title": "Banka Bilgileri",
+    "bank_desc": "Bu bilgiler ödeme yöntemi isteyen müşterilere gönderilecektir.",
+    "bank_name": "Banka Adı",
+    "iban": "IBAN",
+    "brand_title": "Markalama ve Tema",
+    "brand_desc": "Mağazanız için markanıza uygun ana rengi seçin.",
+    "primary_color": "Ana Renk (Primary Color)",
+    "logo_url": "Logo URL",
+    "save_btn": "Kaydet",
+    "saving_btn": "Kaydediliyor...",
+    "kb_placeholder": "...YZ'nin öğrenmesi için mağaza politikalarını buraya girin"
   },
   "layout": {
     "whatsapp_connected": "WhatsApp: Bağlı 🟢",
     "whatsapp_disconnected": "WhatsApp: Bağlantı yok 🔴",
-    "pdf_export": "Raporu İndir (PDF)"
+    "pdf_export": "Raporu İndir (PDF)",
+    "quick_add_product": "Yeni Ürün Ekle",
+    "quick_open_chat": "Sohbet Simülatörünü Aç",
+    "quick_view_orders": "Son Siparişleri Görüntüle",
+    "settings": "Ayarlar",
+    "signOut": "Çıkış Yap"
+  },
+  "dashboard": {
+    "performance_overview": "Performans Özeti",
+    "export_pdf": "Raporu Dışa Aktar (PDF)",
+    "orders_last_7_days": "Son 7 Günlük Sipariş Oranı",
+    "orders_count": "Sipariş Sayısı",
+    "revenue": "Gelir ($)",
+    "messages_distribution": "Kanala Göre Mesaj Dağılımı",
+    "messages_count": "Mesaj Sayısı",
+    "no_messages_yet": "Henüz kaydedilmiş mesaj yok."
+  },
+  "campaigns": {
+    "title": "Akıllı Pazarlama Kampanyaları",
+    "desc": "Hedef müşterilerinize WhatsApp ve Telegram üzerinden kişiselleştirilmiş pazarlama kampanyaları başlatın. YZ önceki konuşmaları analiz eder ve kişiye özel mesaj hazırlar!",
+    "target_tag_label": "Hedef Etiket (Tag)",
+    "launch_btn": "Kampanyayı Başlat",
+    "tag_placeholder": "Örnek: ilgileniyor - saatler",
+    "tag_desc": "Bu etikete veya bu kelimeyi içeren herhangi bir etikete sahip müşteriler hedeflenecektir.",
+    "instructions_label": "Kampanya Talimatları ve Teklifler",
+    "instructions_placeholder": "Örnek: Müşteriye sorduğu ürünlerde %20 indirim olduğunu söyleyin ve EID20 kodunu kullanmasını isteyin.",
+    "launching_btn": "Başlatılıyor..."
   }
 }

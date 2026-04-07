@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslations, useLocale } from 'next-intl';
+import { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: string }) => (
   <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition">
@@ -22,7 +23,9 @@ export default function AdminDashboard() {
 
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'settings'>('businesses');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logSearch, setLogSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'settings' | 'logs'>('businesses');
 
   // New States for Edit / Settings Modal
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
@@ -64,6 +67,15 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Failed to load businesses:", error);
+    }
+
+    try {
+      const logsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs`, { withCredentials: true });
+      if (logsRes.data && logsRes.data.data) {
+        setLogs(logsRes.data.data);
+      }
+    } catch (error) {
+      console.warn("Failed to load logs:", error);
     }
 
     try {
@@ -302,6 +314,51 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleImpersonate = async (businessId: string) => {
+    const newWindow = window.open('', '_blank');
+    if (!newWindow) {
+      alert("Please allow popups to use the Impersonate feature.");
+      return;
+    }
+    newWindow.document.write('<div style="font-family:sans-serif;text-align:center;margin-top:20%;"><h2>Redirecting securely to Merchant Dashboard...</h2></div>');
+    
+    try {
+       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/impersonate/${businessId}`, {}, {withCredentials: true});
+       const token = res.data.token;
+       newWindow.location.href = `/app?impersonate_token=${token}`;
+    } catch(err) {
+       console.error("Failed to impersonate", err);
+       newWindow.close();
+       alert("Failed to impersonate merchant. See console for details.");
+    }
+  };
+
+  const getPlanCostPer1k = (planName: string) => {
+    if(planName === 'enterprise') return 0.015;
+    if(planName === 'pro') return 0.002;
+    return 0.0015; // free
+  };
+
+  const getPlanBasePrice = (planName: string) => {
+    if(planName === 'enterprise') return 199;
+    if(planName === 'pro') return 49;
+    return 0; // free
+  };
+
+  const profitData = businesses.map(b => {
+      const usage = b.token_usage || 0;
+      const plan = b.plan_name || 'free';
+      const cost = (usage / 1000) * getPlanCostPer1k(plan);
+      const profit = getPlanBasePrice(plan) - cost;
+      return {
+         name: b.name,
+         [tAdmin('economic.total_tokens') || 'Tokens']: usage,
+         Cost: parseFloat(cost.toFixed(6)),
+         Profit: parseFloat(profit.toFixed(2)),
+         [tAdmin('forecast.expected') || 'Expected Profit']: parseFloat((profit * 1.15).toFixed(2))
+      };
+  });
+
   return (
     <div className="space-y-6" dir={dir}>
       {/* Stats Section */}
@@ -317,7 +374,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex space-x-2 rtl:space-x-reverse bg-gray-100 p-1.5 rounded-xl w-max shadow-inner">
-        {['businesses', 'create', 'usage', 'plans', 'settings'].map((tab) => (
+        {['businesses', 'create', 'usage', 'plans', 'settings', 'logs'].map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -355,6 +412,8 @@ export default function AdminDashboard() {
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.owner_email')}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.business_type')}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.token_usage')}</th>
+                    <th className="py-4 font-semibold px-2 text-start">{tAdmin('performance.speed') || 'Avg Response Time'}</th>
+                    <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.connection_status') || 'Connection Status'}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.status')}</th>
                     <th className="py-4 font-semibold px-2 text-end">{tCommon('actions')}</th>
                   </tr>
@@ -381,16 +440,29 @@ export default function AdminDashboard() {
                            </div>
                          </div>
                       </td>
+                      <td className="py-4 px-2 text-slate-800 font-medium">
+                         <span className={b.avg_response_time > 5.0 ? 'text-red-600 font-bold' : ''}>
+                           {b.avg_response_time ? `${b.avg_response_time.toFixed(2)}s` : '-'}
+                         </span>
+                      </td>
+                      <td className="py-4 px-2">
+                         <span title="Connection Status">
+                            {b.features?.whatsapp || b.features?.telegram ? '🟢' : '🔴'}
+                         </span>
+                      </td>
                       <td className="py-4 px-2">
                         <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusColor(b.status)}`}>
-                          {b.status ? tAdmin(`table.status_${b.status}` as any) : tAdmin('table.status_unknown')}
+                          {b.status === 'active' ? (tAdmin('table.status_active') || 'Active') : (tAdmin('table.status_inactive') || 'Inactive')}
                         </span>
                       </td>
                       <td className="py-4 px-2 text-end">
                         <div className="flex justify-end gap-3 rtl:flex-row-reverse opacity-70 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => { handleEdit(b.id); }} className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer text-base" title={tAdmin('table.edit')}>✏️</button>
-                          <button onClick={() => { setSelectedBusinessForSettings(b); }} className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer text-base" title={tAdmin('table.configure')}>⚙️</button>
-                          <button onClick={() => { handleToggleStatus(b.id, b.status); }} className="text-slate-500 hover:text-red-600 transition-colors cursor-pointer text-base" title={tAdmin('table.disable')}>⛔</button>
+                          <button onClick={() => { handleImpersonate(b.id); }} className="text-slate-500 hover:text-green-600 transition-colors cursor-pointer text-base flex gap-1 items-center border border-slate-200 px-2 py-1 rounded-lg" title={tAdmin('table.impersonate') || 'Login as Merchant'}>
+                             🔑 {tAdmin('table.impersonate') || 'Impersonate'}
+                          </button>
+                          <button onClick={() => { handleEdit(b.id); }} className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer text-base" title={tAdmin('table.edit') || 'Edit'}>✏️</button>
+                          <button onClick={() => { setSelectedBusinessForSettings(b); }} className="text-slate-500 hover:text-blue-600 transition-colors cursor-pointer text-base" title={tAdmin('table.configure') || 'Configure'}>⚙️</button>
+                          <button onClick={() => { handleToggleStatus(b.id, b.status); }} className="text-slate-500 hover:text-red-600 transition-colors cursor-pointer text-base" title={tAdmin('table.disable') || 'Disable'}>⛔</button>
                         </div>
                       </td>
                     </tr>
@@ -529,6 +601,19 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="grid gap-6">
+                <div className="h-80 w-full bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                  <h4 className="text-lg font-bold text-slate-700 mb-4">{tAdmin('economic.profit') || 'Economic Profit/Cost ($)'}</h4>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={profitData}>
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="Profit" fill="#10b981" name={tAdmin('economic.profit') || 'Profit'} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Cost" fill="#ef4444" name={tAdmin('economic.cost') || 'Cost'} radius={[4, 4, 0, 0]} />
+                      <Line type="monotone" dataKey={tAdmin('forecast.expected') || 'Expected Profit'} stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
                 {businesses.map((biz) => {
                   const quota = biz.monthly_quota || 10000;
                   const usage = biz.token_usage || 0;
@@ -687,6 +772,43 @@ export default function AdminDashboard() {
                       <input type="number" className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings.enterprise_tokens || ''} onChange={(e: any) => setSystemSettings({...systemSettings, enterprise_tokens: e.target.value})} />
                    </div>
                  </div>
+                 
+                 <h4 className="font-semibold text-slate-700 mb-2 mt-6">Plan AI Models</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700">{tSystem('free_model') || 'Free Model'}</label>
+                      <select className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings.free_model || ''} onChange={(e: any) => setSystemSettings({...systemSettings, free_model: e.target.value})}>
+                        <option value="">Default</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      </select>
+                   </div>
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700">{tSystem('pro_model') || 'Pro Model'}</label>
+                      <select className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings.pro_model || ''} onChange={(e: any) => setSystemSettings({...systemSettings, pro_model: e.target.value})}>
+                        <option value="">Default</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      </select>
+                   </div>
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700">{tSystem('enterprise_model') || 'Enterprise Model'}</label>
+                      <select className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings.enterprise_model || ''} onChange={(e: any) => setSystemSettings({...systemSettings, enterprise_model: e.target.value})}>
+                        <option value="">Default</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                      </select>
+                   </div>
+                 </div>
               </div>
 
             </div>
@@ -698,6 +820,63 @@ export default function AdminDashboard() {
               >
                 {savingSettings ? 'Saving...' : (tSystem('save') || 'Save Settings')}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* LOGS TAB */}
+        {activeTab === 'logs' && (
+          <div className="animate-fadeIn">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">{tAdmin('logs.title') || 'Global Error Logs'}</h2>
+            </div>
+            <div className="bg-white border flex items-center p-2 rounded-xl mb-4 max-w-sm shadow-sm ring-1 ring-slate-100">
+                <span className="text-xl mr-2 ml-2">🔍</span>
+                <input 
+                  type="text" 
+                  value={logSearch} 
+                  onChange={(e) => setLogSearch(e.target.value)} 
+                  placeholder={tAdmin('logs.search_placeholder') || 'Search errors...'} 
+                  className="w-full outline-none text-slate-700 bg-transparent text-sm p-1"
+                />
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+               <div className="overflow-x-auto">
+                 <table className="w-full min-w-[600px]">
+                   <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
+                     <tr>
+                       <th className="py-4 font-semibold px-4 text-start">{tAdmin('logs.timestamp') || 'Timestamp'}</th>
+                       <th className="py-4 font-semibold px-2 text-start">{tAdmin('logs.business') || 'Business'}</th>
+                       <th className="py-4 font-semibold px-2 text-start">{tAdmin('logs.error_type') || 'Error Type'}</th>
+                       <th className="py-4 font-semibold px-4 text-start">{tAdmin('logs.message') || 'Message'}</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                      {logs.filter(log => (log.business_name || '').toLowerCase().includes(logSearch.toLowerCase())).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-500">{tAdmin('logs.no_logs') || 'No errors found.'}</td>
+                        </tr>
+                      ) : (
+                        logs.filter(log => (log.business_name || '').toLowerCase().includes(logSearch.toLowerCase())).map((log, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4 px-4 whitespace-nowrap text-xs font-mono text-slate-500">
+                               {new Date(log.timestamp).toLocaleString()}
+                            </td>
+                            <td className="py-4 px-2 font-medium text-slate-800">{log.business_name}</td>
+                            <td className="py-4 px-2">
+                               <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md">
+                                 {log.error_type}
+                               </span>
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-600 max-w-sm truncate" title={log.message}>
+                               {log.message}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                   </tbody>
+                 </table>
+               </div>
             </div>
           </div>
         )}

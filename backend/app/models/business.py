@@ -19,12 +19,19 @@ class Business(BaseModel):
     stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     subscription_status: Mapped[str] = mapped_column(String(50), default="trial")
     ai_tone: Mapped[str] = mapped_column(String(50), default="Professional")
+    bank_details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    knowledge_base: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sheet_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    logo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    primary_color: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="#2563eb")
+    language: Mapped[str] = mapped_column(String(50), default="ar", server_default="ar")
     
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="business", cascade="all, delete-orphan")
     features: Mapped[List["BusinessFeature"]] = relationship(back_populates="business", cascade="all, delete-orphan")
     products: Mapped[List["Product"]] = relationship(back_populates="business", cascade="all, delete-orphan")
     customers: Mapped[List["Customer"]] = relationship(back_populates="business", cascade="all, delete-orphan")
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="business", cascade="all, delete-orphan")
 
 
 class BusinessFeature(BaseModel):

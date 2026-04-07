@@ -3,7 +3,7 @@ import random
 import uuid
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Ensure python can import 'app'
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -47,7 +47,7 @@ async def seed_stress_data():
         await db.commit()
         await db.refresh(dummy_customer)
         
-        today = datetime.utcnow()
+        today = datetime.now(timezone.utc).replace(tzinfo=None)
         new_orders = []
         
         for i in range(20):

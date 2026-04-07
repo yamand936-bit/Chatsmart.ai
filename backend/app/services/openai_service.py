@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class OpenAIService:
     @staticmethod
-    async def generate(messages: list):
+    async def generate(messages: list, model: str = "gpt-4o-mini"):
         from openai import AsyncOpenAI
 
         from app.core.config import settings
@@ -18,7 +18,7 @@ class OpenAIService:
         client = AsyncOpenAI(api_key=api_key)
         try:
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 response_format={"type": "json_object"},
                 messages=messages,
             )

@@ -12,7 +12,9 @@
     "action": "إجراء",
     "delete_confirm": "هل أنت متأكد من أنك تريد حذف هذا التاجر وجميع بياناته تماماً؟ لا يمكن التراجع عن هذا الإجراء.",
     "edit": "تعديل",
-    "save": "حفظ التعديلات"
+    "save": "حفظ التعديلات",
+    "add": "إضافة",
+    "pending": "قيد الانتظار"
   },
   "login": {
     "title": "ChatSmart AI",
@@ -55,13 +57,16 @@
       "confirm_disable": "هل أنت متأكد من تعطيل هذا المتجر؟",
       "confirm_enable": "هل أنت متأكد من تفعيل هذا المتجر؟",
       "close": "إغلاق",
-      "update_success": "تم تحديث البيانات بنجاح!"
+      "update_success": "تم تحديث البيانات بنجاح!",
+      "impersonate": "🔑 دخول كتاجر",
+      "connection_status": "حالة الربط"
     },
     "create": {
       "integrations_title": "الإضافات والمميزات",
-      "type_retail": "تجزئة",
+      "type_retail": "مبيعات (Sales)",
       "type_restaurant": "مطعم",
       "type_services": "خدمات",
+      "type_booking": "حجوزات (Booking)",
       "business_name": "اسم النشاط التجاري",
       "owner_name": "اسم المالك",
       "email": "البريد الإلكتروني",
@@ -86,7 +91,24 @@
       "businesses": "الأنشطة التجارية",
       "create": "إنشاء نشاط",
       "usage": "الاستهلاك",
-      "plans": "الباقات"
+      "plans": "الباقات",
+      "logs": "سجل الأخطاء التقنية",
+      "settings": "الإعدادات"
+    },
+    "economic": {
+      "cost": "التكلفة الفعالة",
+      "profit": "صافي الربح",
+      "total_tokens": "إجمالي التوكنز"
+    },
+    "logs": {
+      "title": "سجل الأخطاء التقنية",
+      "subtitle": "مراقبة الأخطاء العامة وفشل الربط لجميع الشركات.",
+      "search_placeholder": "ابحث باسم الشركة...",
+      "timestamp": "الوقت",
+      "business": "الشركة المتأثرة",
+      "error_type": "نوع الخطأ",
+      "message": "نص الخطأ",
+      "no_logs": "لا توجد أخطاء مسجلة."
     },
     "usage": {
       "title": "تحليلات الاستهلاك",
@@ -94,13 +116,23 @@
     },
     "plans": {
       "title": "باقات الاشتراك",
-      "subtitle": "اختر عملاً لترقية الباقة الخاصة به.",
-      "select_business_first": "يجب تحديد العمل أولاً",
+      "subtitle": "اختر متجراً للترقية.",
+      "select_business_first": "اختر متجر أولاً",
       "select_placeholder": "-- اختر العمل --",
-      "free": "المجانية",
-      "pro": "المتقدمة (Pro)",
-      "enterprise": "المؤسسات",
-      "upgrade": "ترقية الباقة"
+      "free": "مجاني",
+      "pro": "برو",
+      "enterprise": "إنتربرايز",
+      "upgrade": "ترقية"
+    },
+    "alerts": {
+      "title": "تنبيهات النظام الذكية",
+      "quota_warning": "تحذير استهلاك الباقة"
+    },
+    "performance": {
+      "speed": "متوسط سرعة الرد"
+    },
+    "forecast": {
+      "expected": "الربح المتوقع (+15%)"
     }
   },
   "merchant": {
@@ -109,19 +141,39 @@
     "products": "المنتجات",
     "orders": "الطلبات",
     "chat": "تجربة المحادثة",
+    "campaigns": "الحملات الذكية",
+    "calendar": "التقويم الذكي",
+    "calendar_desc": "إدارة مواعيدك وحجوزاتك بصرياً. يمكنك السحب والإفلات لتغيير أوقات المواعيد.",
+    "sync_badge": "المزامنة الذكية للمواعيد",
+    "sync_upload_label": "1. رفع ملف المواعيد (Excel)",
+    "sync_download_booking": "تحميل نموذج المواعيد",
+    "sync_export_appointments": "تصدير المواعيد الحالية (Excel)",
+    "sync_cloud_label": "2. مزامنة عبر Google Sheets",
+    "sync_button": "مزامنة الآن",
+    "enter_link": "يرجى إدخال الرابط المباشر أوّلاً",
+    "sync_success": "تم تحديث التقويم بنجاح!",
+    "sync_error": "حدث خطأ أثناء مزامنة المواعيد. تأكد من صحة الملف.",
     "totalProducts": "إجمالي المنتجات",
     "totalProductsSub": "المنتجات النشطة في الكتالوج",
     "totalOrders": "إجمالي الطلبات",
     "totalOrdersSub": "الطلبات الواردة من العملاء والذكاء الاصطناعي",
-    "orders_count": "{count, plural, =0 {لا توجد طلبات} one {# طلب} two {# طلبين} few {# طلبات} many {# طلباً} other {# طلب}}"
+    "orders_count": "{count, plural, =0 {لا توجد طلبات} one {# طلب} two {# طلبين} few {# طلبات} many {# طلباً} other {# طلب}}",
+    "stats_orders_today": "إجمالي طلبات اليوم:",
+    "stats_active_messages": "الرسائل النشطة:",
+    "stats_consumed_tokens": "التوكنز المستهلكة:"
   },
   "products": {
     "title": "إدارة المنتجات",
     "add": "إضافة منتج جديد",
+    "addNew": "إضافة منتج جديد",
     "name": "الاسم",
     "price": "السعر ($)",
     "description": "الوصف",
     "noProducts": "لا يوجد منتجات، أضف منتجك الأول من الأعلى.",
+    "cards": {
+      "buy_now": "شراء الآن",
+      "book_now": "إحجز الآن"
+    },
     "addButton": "إضافة",
     "edit_product": "تعديل المنتج",
     "edit_success": "تم تعديل المنتج بنجاح!",
@@ -129,7 +181,18 @@
     "image_col": "صورة",
     "no_image": "بدون صورة",
     "empty_title": "أضف منتجك الأول لتفعيل مبيعات الذكاء الاصطناعي",
-    "empty_desc": "لا توجد منتجات لعرضها. أضف منتجاتك هنا ليتمكن المساعد الذكي من اقتراحها وبيعها لعملائك ومشاركة صورها معهم تلقائياً."
+    "empty_desc": "لا توجد منتجات لعرضها. أضف منتجاتك هنا ليتمكن المساعد الذكي من اقتراحها وبيعها لعملائك ومشاركة صورها معهم تلقائياً.",
+    "sync_badge": "المزامنة المتقدمة الجاهزة (Advanced Sync)",
+    "sync_title": "مزامنة المنتجات (Excel / Google Sheets)",
+    "sync_desc": "حدد نوع تجارتك وقم بتحميل النموذج المناسب المتوافق بنسبة 100% مع النظام.",
+    "sync_download_physical": "تحميل نموذج البضائع المادية",
+    "sync_download_booking": "تحميل نموذج المواعيد والخدمات",
+    "sync_upload_label": "الخطوة التالية: رفع الملف بعد تعبئته (Upload File)",
+    "sync_cloud_label": "رابط المشاركة المباشر (Google Sheets / Drive)",
+    "sync_button": "مزامنة الرابط",
+    "sync_loading": "جاري القراءة...",
+    "sync_or": "أو",
+    "sync_note": "ملاحظة: اختر \"Anyone with the link\" إذا كنت تستخدم مجلداً سحابياً لتنجح المزامنة."
   },
   "orders": {
     "title": "طلبات العملاء",
@@ -177,7 +240,12 @@
     "qr_prices": "سؤال عن الأسعار",
     "qr_catalog": "أريد عرض الكتالوج",
     "qr_discounts": "هل يوجد خصومات؟",
-    "qr_support": "أريد التحدث مع خدمة العملاء"
+    "qr_support": "أريد التحدث مع خدمة العملاء",
+    "inbox_title": "صندوق الوارد (Inbox)",
+    "inbox_desc": "تم فلترة الأولويات عبر الذكاء الاصطناعي",
+    "simulator_title": "المحاكي الآلي (Simulator)",
+    "simulator_badge": "مباشر",
+    "simulator_desc": "اختبر ردود الذكاء الاصطناعي هنا"
   },
   "system": {
     "title": "إعدادات النظام",
@@ -187,6 +255,9 @@
     "free_tokens": "توكنز الباقة المجانية",
     "pro_tokens": "توكنز باقة المحترفين",
     "enterprise_tokens": "توكنز باقة الشركات",
+    "free_model": "موديل الذكاء للـ المجانية",
+    "pro_model": "موديل الذكاء للـ برو",
+    "enterprise_model": "موديل الذكاء للشركاء",
     "save": "حفظ الإعدادات",
     "saved": "تم الحفظ بنجاح"
   },
@@ -204,11 +275,50 @@
     "tone_friendly": "الودودة (Friendly)",
     "tone_sales": "المبيعات القوية (Sales-driven)",
     "tone_updating": "جاري تحديث النبرة...",
-    "tone_updated": "تم تحديث النبرة بنجاح!"
+    "tone_updated": "تم تحديث النبرة بنجاح!",
+    "kb_title": "قواعد العمل والتعليمات (Knowledge Base)",
+    "kb_desc": "اجعل البوت يتعلم سياسات العمل مثل أوقات الدوام، سياسة الاسترجاع، وغيرها.",
+    "bank_title": "معلومات الحوالة البنكية (Bank Details)",
+    "bank_desc": "ستُرسل هذه المعلومات للعملاء عند طلب طريقة الدفع.",
+    "bank_name": "اسم البنك / Bank Name",
+    "iban": "الآيبان / IBAN",
+    "brand_title": "الهوية البصرية (Branding & Theme)",
+    "brand_desc": "حدد اللون الأساسي لمتجرك ليتناسق مع ألوان لوحة التحكم.",
+    "primary_color": "اللون الأساسي (Primary Color)",
+    "logo_url": "رابط الشعار (Logo URL)",
+    "save_btn": "حفظ الإعدادات (Save)",
+    "saving_btn": "جاري الحفظ...",
+    "kb_placeholder": "...أدخل سياسات المتجر هنا ليتعلمها الذكاء الاصطناعي"
   },
   "layout": {
     "whatsapp_connected": "واتساب: متصل 🟢",
     "whatsapp_disconnected": "واتساب: غير متصل 🔴",
-    "pdf_export": "تصدير التقرير (PDF)"
+    "pdf_export": "تصدير التقرير (PDF)",
+    "quick_add_product": "إضافة منتج جديد",
+    "quick_open_chat": "فتح محاكي الدردشة",
+    "quick_view_orders": "عرض آخر الطلبات",
+    "settings": "الإعدادات",
+    "signOut": "تسجيل الخروج"
+  },
+  "dashboard": {
+    "performance_overview": "نظرة عامة على الأداء",
+    "export_pdf": "تصدير التقرير (PDF)",
+    "orders_last_7_days": "معدل الطلبات في آخر 7 أيام",
+    "orders_count": "عدد الطلبات",
+    "revenue": "الأرباح ($)",
+    "messages_distribution": "توزيع الرسائل حسب القناة",
+    "messages_count": "عدد الرسائل",
+    "no_messages_yet": "لا توجد رسائل مسجلة بعد."
+  },
+  "campaigns": {
+    "title": "الحملات التسويقية الذكية",
+    "desc": "قم بإطلاق حملات تسويقية مخصصة عبر الواتساب وتيليجرام لعملائك المستهدفين. يقوم الذكاء الاصطناعي بتحليل المحادثات السابقة لكل عميل وصياغة رسالة تناسبه شخصياً!",
+    "target_tag_label": "الوسم المستهدف (Tag)",
+    "launch_btn": "إطلاق الحملة الآن",
+    "tag_placeholder": "مثال: مهتم - ساعات",
+    "tag_desc": ".سيتم استهداف العملاء الذين يمتلكون هذا الوسم أو أي وسم يحتوي على هذه الكلمة",
+    "instructions_label": "تعليمات الحملة والعروض",
+    "instructions_placeholder": "مثال: أخبر العميل أن لدينا خصم ٢٠٪ بمناسبة العيد على المنتجات التي كان يسأل عنها، واطلب منه استخدام كود EID20.",
+    "launching_btn": "جاري الإطلاق..."
   }
 }
