@@ -121,19 +121,29 @@ async def transmit_telegram(bot_token: str, chat_id: str, text: str, smart_cards
                     except Exception as e:
                         logger.error(f"Telegram inline card transmission failed: {e}")
 
-async def transmit_meta_graph(phone_number_id: str, access_token: str, recipient_id: str, text: str):
+async def transmit_meta_graph(phone_number_id: str, access_token: str, recipient_id: str, text: str = None, interactive_payload: dict = None):
     if settings.INTEGRATIONS_MODE == "mock":
-        logger.info(f"[MOCK] Meta Graph Message (wa_id/ig_id {recipient_id}): {text}")
+        logger.info(f"[MOCK] Meta Graph Message (wa_id/ig_id {recipient_id}): {text} | INTERACTIVE: {interactive_payload}")
         return
         
     # v20.0 Meta Graph API Standard
     url = f"https://graph.facebook.com/v20.0/{phone_number_id}/messages"
-    payload = {
-        "messaging_product": "whatsapp", # Will handle IG differently if needed, keeping simple here
-        "to": recipient_id,
-        "type": "text",
-        "text": {"body": text}
-    }
+    
+    if interactive_payload:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient_id,
+            "type": "interactive",
+            "interactive": interactive_payload
+        }
+    else:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient_id,
+            "type": "text",
+            "text": {"body": text}
+        }
+        
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
     async with httpx.AsyncClient() as client:
         try:
@@ -224,7 +234,7 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
                 ))
                 customer = result.scalar_one_or_none()
                 if customer and prod_id_str:
-                    p_res = await db.execute(select(Product).where(Product.id == uuid.UUID(prod_id_str)))
+                    p_res = await db.execute(select(Product).where(Product.id == uuid.UUID(prod_id_str), Product.business_id == business_id))
                     product = p_res.scalar_one_or_none()
                     if product:
                         new_order = Order(
@@ -422,6 +432,45 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
                             except Exception as e:
                                 logger.error(f"WhatsApp image processing failed: {e}")
                                 continue
+                                
+                    elif msg_type == "interactive":
+                        interactive_data = msg.get("interactive", {})
+                        if interactive_data.get("type") == "button_reply":
+                            button_id = interactive_data.get("button_reply", {}).get("id", "")
+                            if button_id.startswith("buy:"):
+                                prod_id_str = button_id.split(":")[1]
+                                try:
+                                    from app.models.domain import Customer, Order, Product
+                                    from sqlalchemy import select
+                                    result = await db.execute(select(Customer).where(
+                                        Customer.business_id == business_id,
+                                        Customer.platform == "whatsapp",
+                                        Customer.external_id == sender_wa_id
+                                    ))
+                                    customer = result.scalar_one_or_none()
+                                    if customer and prod_id_str:
+                                        p_res = await db.execute(select(Product).where(Product.id == uuid.UUID(prod_id_str), Product.business_id == business_id))
+                                        product = p_res.scalar_one_or_none()
+                                        if product:
+                                            new_order = Order(
+                                                business_id=business_id,
+                                                customer_id=customer.id,
+                                                status="pending",
+                                                total_amount=product.price,
+                                                payload={"product_name": product.name, "product_id": str(product.id), "quantity": 1}
+                                            )
+                                            db.add(new_order)
+                                            await db.commit()
+                                            logger.info(f"Order created natively via WhatsApp Interactive for {sender_wa_id}")
+                                            await transmit_meta_graph(
+                                                phone_number_id=config.get("phone_number_id", ""),
+                                                access_token=config.get("access_token", ""),
+                                                recipient_id=sender_wa_id,
+                                                text=f"✅ تم استلام طلبك للمنتج: *{product.name}*\nالحالة: قيد المراجعة (Pending). سنقوم بالتواصل معك قريباً!"
+                                            )
+                                except Exception as e:
+                                    logger.error(f"WhatsApp Interactive Order failed: {e}")
+                                continue
                     
                     if not text_content.strip() and not media_b64:
                         continue
@@ -460,16 +509,37 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
                                 text=displayText.strip()
                             )
                             
-                        # 2. Send media messages for each smart card if image exists
-                        # (Fallback via simple link rendering if media message fails)
+                        # 2. Send Media & Button Messages for each smart card
                         for card in smartCards:
-                            if card.get("image_url") and card.get("image_url") != "URL":
-                                caption = f"{card.get('product_name')}\nPrice: {card.get('price')}\nLink: {card.get('image_url')}"
+                            if card.get("product_id") and card.get("image_url") and card.get("image_url") != "URL":
+                                card_payload = {
+                                    "type": "button",
+                                    "header": {
+                                        "type": "image",
+                                        "image": {
+                                            "link": card.get("image_url")  # In production, must be public URL
+                                        }
+                                    },
+                                    "body": {
+                                        "text": f"*{card.get('product_name')}*\nPrice: {card.get('price')}"
+                                    },
+                                    "action": {
+                                        "buttons": [
+                                            {
+                                                "type": "reply",
+                                                "reply": {
+                                                    "id": f"buy:{card.get('product_id')}",
+                                                    "title": "🛒 تأكيد الشراء"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
                                 await transmit_meta_graph(
                                     phone_number_id=config.get("phone_number_id", ""),
                                     access_token=config.get("access_token", ""),
                                     recipient_id=sender_wa_id,
-                                    text=caption # Using text for now until image template is configured
+                                    interactive_payload=card_payload
                                 )
         return {"status": "success"}
     except Exception as e:

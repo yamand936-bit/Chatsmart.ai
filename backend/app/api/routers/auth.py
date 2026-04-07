@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi.security import OAuth2PasswordRequestForm
@@ -116,8 +117,11 @@ async def instagram_login_redirect(payload: TokenPayload = Depends(get_current_u
     client_id = settings.META_APP_ID if hasattr(settings, 'META_APP_ID') and settings.META_APP_ID else (settings.INSTAGRAM_APP_ID if hasattr(settings, 'INSTAGRAM_APP_ID') else "MOCK_APP_ID")
     redirect_uri = f"{settings.BACKEND_CORS_ORIGINS[0]}/api/auth/instagram/callback"
     
-    # Passing business_id in state to link back securely
-    state = str(payload.business_id) 
+    import os, base64
+    nonce = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    state = nonce
+    
+    await redis_client.setex(f"ig_state:{nonce}", 600, str(payload.business_id))
     
     oauth_url = (
         f"https://www.facebook.com/v20.0/dialog/oauth?"
@@ -148,6 +152,15 @@ async def instagram_oauth_callback(
     if not state:
          return PlainTextResponse(content="Error: Invalid state parameter", status_code=400)
     
+    # Validate CSRF state nonce
+    stored_business_id = await redis_client.get(f"ig_state:{state}")
+    if not stored_business_id:
+         return PlainTextResponse(content="Error: Invalid or expired state parameter", status_code=400)
+    
+    # Consume the nonce to prevent replay attacks
+    await redis_client.delete(f"ig_state:{state}")
+    business_id_str = stored_business_id
+    
     from app.models.business import BusinessFeature
     
     # If returned as a fragment or query param token
@@ -168,9 +181,10 @@ async def instagram_oauth_callback(
 
     if final_token:
         # Store in BusinessFeature
+        import uuid
         result = await db.execute(
             select(BusinessFeature).where(
-                BusinessFeature.business_id == state,
+                BusinessFeature.business_id == uuid.UUID(business_id_str),
                 BusinessFeature.feature_type == "instagram"
             )
         )
@@ -185,7 +199,7 @@ async def instagram_oauth_callback(
             feature.is_active = True
         else:
             feature = BusinessFeature(
-                business_id=state,
+                business_id=uuid.UUID(business_id_str),
                 feature_type="instagram",
                 is_active=True,
                 config=config

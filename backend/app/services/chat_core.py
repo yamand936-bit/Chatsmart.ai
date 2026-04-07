@@ -369,23 +369,43 @@ async def process_chat_core(
         TokenService.count(content) +
         TokenService.count(ai_msg_content)
     )
-    today_res = await db.execute(
-        select(UsageLog).where(
-            UsageLog.business_id == business_id,
-            UsageLog.date_logged == date.today(),
+    import sqlalchemy.exc
+    
+    today_date = date.today()
+    try:
+        async with db.begin_nested():
+            today_res = await db.execute(
+                select(UsageLog).where(
+                    UsageLog.business_id == business_id,
+                    UsageLog.date_logged == today_date,
+                )
+            )
+            usage_today = today_res.scalar_one_or_none()
+            if usage_today:
+                usage_today.tokens_used += tokens_used_now
+                usage_today.request_count = (usage_today.request_count or 0) + 1
+            else:
+                db.add(UsageLog(
+                    business_id=business_id,
+                    tokens_used=tokens_used_now,
+                    request_count=1,
+                    date_logged=today_date
+                ))
+    except sqlalchemy.exc.IntegrityError:
+        # Race condition handle: another concurrent request created the row
+        today_res = await db.execute(
+            select(UsageLog).where(
+                UsageLog.business_id == business_id,
+                UsageLog.date_logged == today_date,
+            )
         )
-    )
-    usage_today = today_res.scalar_one_or_none()
-    if usage_today:
+        usage_today = today_res.scalar_one()
         usage_today.tokens_used += tokens_used_now
         usage_today.request_count = (usage_today.request_count or 0) + 1
-    else:
-        db.add(UsageLog(
-            business_id=business_id,
-            tokens_used=tokens_used_now,
-            request_count=1,
-        ))
 
+    # C3 Invalidate Cache immediately to ensure billing accuracy
+    start_of_month = today_date.replace(day=1)
+    await redis_client.delete(f"token_usage:{business_id}:{start_of_month.isoformat()}")
     # ── 10. Log detailed AI Analytics ─────────────────────────────────────────
     if provider != "unknown":
         input_tokens = TokenService.count(content)
