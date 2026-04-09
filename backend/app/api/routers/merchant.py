@@ -79,8 +79,6 @@ class TelegramConfigureRequest(BaseModel):
 class ToneUpdate(BaseModel):
     tone: str
 
-    action: str # 'validate' or 'save'
-
 # ── Response Schemas ──────────────────────────────────────────────────────────
 
 class ProductOut(BaseModel):
