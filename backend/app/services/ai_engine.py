@@ -57,8 +57,6 @@ class AIEngineService:
         staff_str = ", ".join(self.staff_members) if self.staff_members else "General Staff"
         payment_info = json.dumps(self.bank_details, ensure_ascii=False) if self.bank_details else 'No specific payment instructions provided.'
 
-        schema_json = json.dumps(AIIntentSchema.model_json_schema(), indent=2)
-
         prompt = f"""Current Server Date and Time: {date_str_today}
 
 You are an AI assistant for a '{self.business_type}' business.
@@ -75,9 +73,20 @@ KNOWLEDGE BASE:
 PAYMENT/BANK DETAILS:
 {payment_info}
 
-CRITICAL JSON SCHEMA:
-You MUST output a valid JSON object strictly adhering to this JSON Schema. Do NOT wrap it in markdown. Do NOT add explanation text outside the JSON.
-{schema_json}
+CRITICAL JSON STRUCTURE RULE:
+You MUST output a valid JSON object. Do NOT wrap it in markdown block quotes. Do NOT add ANY text outside the JSON.
+Your JSON MUST have exactly these keys and follow these types:
+{{
+  "intent": "none" | "create_order" | "book_appointment" | "suggest_product" | "handoff_human" | "technical_support",
+  "confidence": 0.9,
+  "lead_priority": "None" | "Cold" | "Warm" | "Hot",
+  "response": "Your actual text reply to the customer.",
+  "data": {{
+      // For appointments, include "appointment_time": "YYYY-MM-DD HH:MM", "staff_name": "Doctor Name"
+      // For orders/appointments, include "product_id": "UUID", "customer_name": "Name", "phone": "Number"
+  }}
+}}
+If a key is not needed, leave it empty or default, BUT do not remove the key from the JSON.
 
 LANGUAGE RULE:
 You are a highly intelligent multilingual assistant supporting Arabic, Turkish, and English.
