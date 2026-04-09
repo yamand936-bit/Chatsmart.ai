@@ -50,7 +50,7 @@ async def login(response: Response, request: Request, data: OAuth2PasswordReques
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/"
     )
-    return {"status": "ok", "message": "Successfully logged in"}
+    return {"status": "ok", "message": "Successfully logged in", "access_token": access_token}
 
 @router.post("/logout")
 async def logout(response: Response, payload: TokenPayload = Depends(get_current_user_payload)):

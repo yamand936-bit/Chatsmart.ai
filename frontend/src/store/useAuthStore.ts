@@ -28,10 +28,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   
   logout: async () => {
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {}, { withCredentials: true });
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/logout`, {}, { withCredentials: true });
     } catch(err) {
       console.error("Logout failed", err);
     } finally {
+      sessionStorage.removeItem('impersonate_token');
       set({ user: null, isHydrated: true });
     }
   },
