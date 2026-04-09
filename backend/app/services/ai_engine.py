@@ -95,7 +95,7 @@ class AIEngineService:
                 cleaned_text = cleaned_text[s:e+1]
 
             return {
-                "ai_output": json.loads(cleaned_text),
+                "ai_output": cleaned_text,
                 "provider": result["provider"],
                 "model": result["model"],
             }
