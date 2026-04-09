@@ -1,7 +1,7 @@
 import uuid
 import datetime
 from sqlalchemy.future import select
-from app.models.domain import Appointment, Business
+from app.models.domain import Appointment
 from typing import List, Dict
 
 class AvailabilityService:
