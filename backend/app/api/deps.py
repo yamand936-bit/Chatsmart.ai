@@ -22,34 +22,41 @@ async def get_current_user_payload(request: Request) -> TokenPayload:
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
+        
+    def validate_token_sync(t):
+        if not t: return None
+        try:
+            return jwt.decode(t, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+        except JWTError:
+            return None
+
+    payload = validate_token_sync(token)
+
+    # Fallback to cookie gracefully to prevent infinite front-end loops if Bearer token in state expires
+    if not payload:
+        cookie_token = request.cookies.get("access_token")
+        if cookie_token and cookie_token != token:
+            payload = validate_token_sync(cookie_token)
+            token = cookie_token
+
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated or token expired",
+        )
+
+    token_data = TokenPayload(**payload)
     
-    if not token:
-        token = request.cookies.get("access_token")
-        
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-    try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
-        token_data = TokenPayload(**payload)
-        
-        # Check if the token is blacklisted in Redis
-        if token_data.jti:
-            is_blacklisted = await redis_client.exists(f"blacklist:{token_data.jti}")
-            if is_blacklisted:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token has been revoked",
-                )
-        
-        return token_data
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-        )
+    # Check if the token is blacklisted in Redis
+    if token_data.jti:
+        is_blacklisted = await redis_client.exists(f"blacklist:{token_data.jti}")
+        if is_blacklisted:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
+            )
+            
+    return token_data
 
 async def get_current_admin(payload: TokenPayload = Depends(get_current_user_payload)) -> TokenPayload:
     if payload.role != "admin":
