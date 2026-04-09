@@ -98,8 +98,8 @@ if (typeof window !== "undefined") {
             isRefreshing = true;
 
             try {
-              // Attempt to refresh token silently
-              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {}, { withCredentials: true });
+              // Attempt to refresh token silently. Add _retry: true to bypass the interceptor on failure.
+              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {}, { withCredentials: true, _retry: true } as any);
               isRefreshing = false;
               onRefreshed();
               refreshSubscribers = [];

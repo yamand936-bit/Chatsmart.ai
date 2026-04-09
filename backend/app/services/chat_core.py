@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from app.models.domain import Customer, Conversation, Message, Product, Order, UsageLog, Appointment
+from app.models.domain import Customer, Conversation, Message, Product, Order, UsageLog, Appointment, SystemErrorLog
 from app.models.business import Business
 from app.services.ai_engine import AIEngineService
 from app.config.plans import PLANS
@@ -16,6 +16,8 @@ from app.services.settings_service import SettingsService
 from app.models.ai_usage_log import AIUsageLog
 from app.services.token_service import TokenService
 from app.services.cost_service import CostService
+from app.services.notification_service import NotificationService
+from typing import Tuple, List, Dict
 import re
 import time
 
@@ -37,11 +39,10 @@ async def process_chat_core(
     content: str,
     media_url: str = None,
     media_b64: str = None
-) -> tuple[str, str, str, str]:
+) -> Tuple[str, str, str, str, List[Dict]]:
     """
-    Single source of truth for AI chat processing.
-    Called by: /api/chat/message (simulator) and all integration webhooks.
-    Returns: (ai_response, intent, message_id, conversation_id)
+    Core pipeline for processing incoming messages logic.
+    Returns: (ai_response_text, intent_string, user_msg_id, conversation_id, smart_cards)
     """
 
     # ── 1. Find or create Customer (race-condition safe) ─────────────────────
@@ -138,7 +139,7 @@ async def process_chat_core(
     # ── 4. Human-handoff guard — skip AI when an agent is active ─────────────
     if conversation.status == "human":
         await db.commit()
-        return ("", "human_handoff_active", str(user_msg.id), str(conversation.id))
+        return ("", "human_handoff_active", str(user_msg.id), str(conversation.id), [])
 
     # ── 5. Load business and active products ──────────────────────────────────
     b_res = await db.execute(select(Business).where(Business.id == business_id))
@@ -154,7 +155,7 @@ async def process_chat_core(
         )
         db.add(assistant_msg)
         await db.commit()
-        return ("This service is temporarily unavailable.", "business_disabled", str(user_msg.id), str(conversation.id))
+        return ("This service is temporarily unavailable.", "business_disabled", str(user_msg.id), str(conversation.id), [])
 
     p_res = await db.execute(
         select(Product).where(
@@ -190,16 +191,21 @@ async def process_chat_core(
     if plan_limit is not None and tokens_used >= plan_limit:
         ai_msg_content = "Token limit reached"
         intent_value = "limit_reached"
-        # Persist the assistant reply
-        assistant_msg = Message(
+        # Save Bot Message
+        bot_msg = Message(
             business_id=business_id,
             conversation_id=conversation.id,
-            sender_type="assistant",
+            sender_type="bot",
             content=ai_msg_content,
+            intent=intent_value,
+            model_used="none",
+            token_count=0 
         )
-        db.add(assistant_msg)
+        db.add(bot_msg)
         await db.commit()
-        return (ai_msg_content, intent_value, str(user_msg.id), str(conversation.id))
+        await db.refresh(user_msg)
+
+        return ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), []
 
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
@@ -212,13 +218,17 @@ async def process_chat_core(
         knowledge_base=business.knowledge_base,
         bank_details=business.bank_details,
         is_tiktok_comment=is_comment,
-        platform=customer_platform
+        platform=customer_platform,
+        customer_name=customer.name,
+        customer_phone=customer.phone,
+        staff_members=business.staff_members
     )
 
     provider = "unknown"
     model = "unknown"
 
     resp_time = None
+    smart_cards = []
     try:
         start_time = time.time()
         raw_res = await ai_engine.get_response(db, content, conversation, media_b64=media_b64, user_msg_id=user_msg.id)
@@ -245,7 +255,7 @@ async def process_chat_core(
             db.add(conversation)
 
         # ── 7. Intent-specific processing ─────────────────────────────────────
-        if ai_intent.intent == "create_order":
+        if ai_intent.intent in ["create_order", "suggest_product"]:
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
 
             if not product_id_str:
@@ -270,7 +280,17 @@ async def process_chat_core(
                                 "quantity": 1,
                             },
                         )
-                        db.add(new_order)
+                        if ai_intent.intent == "create_order":
+                            # C-2 Fix: Do not create order here. Only send the Smart Card allowing user to confirm.
+                            pass
+                        
+                        smart_cards.append({
+                            "product_id": str(matched_product.id),
+                            "product_name": matched_product.name,
+                            "price": str(matched_product.price),
+                            "image_url": matched_product.image_url or "https://via.placeholder.com/150"
+                        })
+                        
                         # ai_msg_content and intent_value stay as the AI set them.
                     else:
                         ai_msg_content = "عذراً، لم أتمكن من العثور على هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
@@ -285,6 +305,18 @@ async def process_chat_core(
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
             appointment_time = ai_intent.data.get("appointment_time") if ai_intent.data else None
             
+            cust_name = ai_intent.data.get("customer_name") if ai_intent.data else None
+            cust_phone = ai_intent.data.get("phone") if ai_intent.data else None
+            staff_name = ai_intent.data.get("staff_name") if ai_intent.data else None
+            
+            # Persist customer info if provided
+            if cust_name or cust_phone:
+                if cust_name and not customer.name:
+                    customer.name = cust_name
+                if cust_phone and not customer.phone:
+                    customer.phone = cust_phone
+                db.add(customer)
+                
             if not product_id_str or not appointment_time:
                 # Let the AI's natural follow-up question pass to the user
                 intent_value = "none"
@@ -307,16 +339,35 @@ async def process_chat_core(
                             start_dt = None
                             
                         if start_dt:
-                            new_booking = Appointment(
-                                business_id=business_id,
-                                customer_id=customer.id,
-                                status="confirmed",
-                                title=f"{customer.name or 'Customer'} - {matched_product.name}",
-                                start_time=start_dt,
-                                end_time=end_dt,
-                                notes=f"Booked via AI Chat. Service: {matched_product.name}"
+                            # Idempotency check: prevent duplicate appointments
+                            existing_appt_res = await db.execute(
+                                select(Appointment).where(
+                                    Appointment.customer_id == customer.id,
+                                    Appointment.business_id == business_id,
+                                    Appointment.start_time == start_dt,
+                                    Appointment.title.like(f"%{matched_product.name}%")
+                                )
                             )
-                            db.add(new_booking)
+                            if existing_appt_res.scalar_one_or_none():
+                                logger.info(f"Duplicate booking prevented for {start_dt}")
+                            else:
+                                title_suffix = f" (مع {staff_name})" if staff_name else ""
+                                new_booking = Appointment(
+                                    business_id=business_id,
+                                    customer_id=customer.id,
+                                    status="confirmed",
+                                    title=f"{customer.name or 'Customer'} - {matched_product.name}{title_suffix}",
+                                    start_time=start_dt,
+                                    end_time=end_dt,
+                                    notes=f"Booked via AI Chat. Service: {matched_product.name}",
+                                    staff_name=staff_name
+                                )
+                                db.add(new_booking)
+                                
+                                staff_line = f"\nStaff: {staff_name}" if staff_name else ""
+                                msg = f"New Appointment Booked:\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nService: {matched_product.name}{staff_line}\nTime: {start_dt.strftime('%Y-%m-%d %H:%M')}\nPlatform: {customer.platform}"
+                                import asyncio
+                                asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "APPOINTMENT", msg))
                         else:
                             ai_msg_content = "عذراً، لم أتمكن من فهم صيغة التاريخ والوقت." if detected_lang in ["ar", "Arabic"] else ("Tarih ve saat formatını anlayamadım." if detected_lang in ["tr", "Turkish"] else "I could not understand the date and time format you provided.")
                             intent_value = "error"
@@ -337,20 +388,33 @@ async def process_chat_core(
             support_phone = await SettingsService.get(db, "support_phone")
             ai_msg_content = f"⚠️ Support Required\n\n📞 {support_phone}"
             intent_value = "technical_support"
+            
+            msg = f"Technical Support Request:\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nPlatform: {customer.platform}\n\nPlease check your recent chats to assist them."
+            import asyncio
+            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg))
 
         # Let AI handle the language fluidity naturally without overriding
 
     except Exception as e:
-        logger.error(f"AI processing failed: {e}", exc_info=True)
+        import traceback
+        tb_str = traceback.format_exc()
+        logger.error(f"AI processing failed: {e}\n{tb_str}")
         try:
             error_log = SystemErrorLog(
                 business_id=business_id,
                 error_type="ai_error",
-                message=str(e),
+                message=f"{str(e)}\n{tb_str[:500]}",
             )
             db.add(error_log)
         except Exception:
             pass
+            
+        import asyncio
+        asyncio.create_task(NotificationService.dispatch_admin_error(
+            f"AI Engine Failure [Business: {business_id}]", 
+            f"Error: {e}\n\n{tb_str}"
+        ))
+        
         ai_msg_content = "Something went wrong on our end. Please try again in a moment."
         intent_value = "error"
 
@@ -373,7 +437,8 @@ async def process_chat_core(
     
     today_date = date.today()
     try:
-        async with db.begin_nested():
+        if tokens_used_now > 0:
+            from sqlalchemy import update
             today_res = await db.execute(
                 select(UsageLog).where(
                     UsageLog.business_id == business_id,
@@ -382,8 +447,14 @@ async def process_chat_core(
             )
             usage_today = today_res.scalar_one_or_none()
             if usage_today:
-                usage_today.tokens_used += tokens_used_now
-                usage_today.request_count = (usage_today.request_count or 0) + 1
+                await db.execute(
+                    update(UsageLog)
+                    .where(UsageLog.business_id == business_id, UsageLog.date_logged == today_date)
+                    .values(
+                        tokens_used=UsageLog.tokens_used + tokens_used_now,
+                        request_count=UsageLog.request_count + 1
+                    )
+                )
             else:
                 db.add(UsageLog(
                     business_id=business_id,
@@ -438,4 +509,4 @@ async def process_chat_core(
             
     asyncio.create_task(run_tagger(customer.id, conversation.id))
 
-    return (ai_msg_content, intent_value, str(user_msg.id), str(conversation.id))
+    return (ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), smart_cards)

@@ -44,13 +44,15 @@ async def handle_message(
     client_ip = request.client.host if request.client else "unknown"
     await check_rate_limit(f"rate_limit:chat:{business_id}:{client_ip}", 50, 60)
 
-    ai_response, intent, msg_id, conv_id = await process_chat_core(
-        db=db,
-        business_id=business_id,
-        customer_platform=data.customer_platform,
-        external_id=data.external_id,
-        content=data.content
+    ai_response, intent, msg_id, conv_id, smart_cards = await process_chat_core(
+        db=db, business_id=business_id, customer_platform="web_admin",
+        external_id=data.external_id, content=data.content
     )
+    
+    # Optional logic for smart_cards formatting inside admin
+    if smart_cards:
+        for c in smart_cards:
+            ai_response = f"{ai_response}\n\n[SMART CARD: {c.get('product_name')} - {c.get('price')}]"
 
     return {
         "status": "ok", 

@@ -65,7 +65,10 @@ def verify_tiktok_signature(payload: bytes, signature_header: str, app_secret: s
 import ipaddress
 TELEGRAM_SUBNETS = [
     ipaddress.ip_network('149.154.160.0/20'),
-    ipaddress.ip_network('91.108.4.0/22')
+    ipaddress.ip_network('149.154.168.0/22'),
+    ipaddress.ip_network('91.108.4.0/22'),
+    ipaddress.ip_network('91.108.8.0/22'),
+    ipaddress.ip_network('91.108.56.0/22')
 ]
 
 def is_telegram_ip(ip: str) -> bool:
@@ -310,28 +313,13 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
     logger.info(f"[TELEGRAM] msg from {user_id} for business {business_id}")
 
     try:
-        ai_response, intent, _, _ = await process_chat_core(
+        ai_response, intent, _, _, smart_cards = await process_chat_core(
             db=db, business_id=business_id, customer_platform="telegram",
             external_id=user_id, content=text_content,
             media_url=media_url, media_b64=media_b64
         )
-        if ai_response:
-            import re
-            import json
-            
-            displayText = ai_response
-            smartCards = []
-            codeBlockRegex = r"```json\n([\s\S]*?)\n```"
-            matches = re.finditer(codeBlockRegex, ai_response)
-            for match in matches:
-                try:
-                    card = json.loads(match.group(1))
-                    smartCards.append(card)
-                    displayText = displayText.replace(match.group(0), '')
-                except:
-                    pass
-                    
-            await transmit_telegram(config.get("bot_token", ""), chat_id, displayText.strip(), smart_cards=smartCards)
+        if ai_response or smart_cards:
+            await transmit_telegram(config.get("bot_token", ""), chat_id, ai_response or "", smart_cards=smart_cards)
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Telegram core logic fail: {e}")
@@ -477,28 +465,14 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
 
                     logger.info(f"[WHATSAPP] msg from {sender_wa_id} for business {business_id}")
                     
-                    ai_response, intent, _, _ = await process_chat_core(
+                    ai_response, intent, _, _, smart_cards = await process_chat_core(
                         db=db, business_id=business_id, customer_platform="whatsapp",
                         external_id=sender_wa_id, content=text_content,
                         media_url=media_url, media_b64=media_b64
                     )
                     
-                    if ai_response:
-                        import re
-                        import json
-                        
-                        displayText = ai_response
-                        smartCards = []
-                        
-                        codeBlockRegex = r"```json\n([\s\S]*?)\n```"
-                        matches = re.finditer(codeBlockRegex, ai_response)
-                        for match in matches:
-                            try:
-                                card = json.loads(match.group(1))
-                                smartCards.append(card)
-                                displayText = displayText.replace(match.group(0), '')
-                            except:
-                                pass
+                    if ai_response or smart_cards:
+                        displayText = ai_response or ""
                                 
                         # 1. Send the text part first
                         if displayText.strip():
@@ -510,7 +484,7 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
                             )
                             
                         # 2. Send Media & Button Messages for each smart card
-                        for card in smartCards:
+                        for card in smart_cards:
                             if card.get("product_id") and card.get("image_url") and card.get("image_url") != "URL":
                                 card_payload = {
                                     "type": "button",
@@ -609,9 +583,6 @@ async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db
                             except Exception as e:
                                 logger.error(f"Failed to process IG media: {e}")
                 
-                if not text_content.strip() and not media_b64:
-                    continue
-
                 if sender_id:
                     msg_id = message.get("mid", "")
                     if msg_id:
@@ -620,27 +591,38 @@ async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db
                             continue
                         await redis_client.setex(dedup_key, 86400, "1")
 
-                    logger.info(f"[INSTAGRAM] msg from {sender_id} for business {business_id}")
+                if not text_content.strip() and not media_b64:
+                    continue
+
+                logger.info(f"[INSTAGRAM] msg from {sender_id} for business {business_id}")
+                
+                ai_response, intent, _, _, smart_cards = await process_chat_core(
+                    db=db, business_id=business_id, customer_platform="instagram",
+                    external_id=sender_id, content=text_content,
+                    media_url=media_url, media_b64=media_b64
+                )
+                
+                if ai_response or smart_cards:
+                    # Instagram uses slightly different send payload, handled simply here 
+                    # using Graph v20.0 standard Page access
+                    url = f"https://graph.facebook.com/v20.0/me/messages"
                     
-                    ai_response, intent, _, _ = await process_chat_core(
-                        db=db, business_id=business_id, customer_platform="instagram",
-                        external_id=sender_id, content=text_content,
-                        media_url=media_url, media_b64=media_b64
-                    )
+                    resp_text = ai_response or ""
+                    if smart_cards:
+                        for c in smart_cards:
+                            product_link = c.get("product_url") or ""
+                            if product_link:
+                                resp_text += f"\n{c.get('product_name')}: {product_link}"
                     
-                    if ai_response:
-                        # Instagram uses slightly different send payload, handled simply here 
-                        # using Graph v20.0 standard Page access
-                        url = f"https://graph.facebook.com/v20.0/me/messages"
-                        payload = {"recipient": {"id": sender_id}, "message": {"text": ai_response}}
-                        headers = {"Authorization": f"Bearer {config.get('access_token', '')}", "Content-Type": "application/json"}
-                        
-                        if settings.INTEGRATIONS_MODE == "mock":
-                            logger.info(f"[MOCK] Instagram Message to {sender_id}: {ai_response}")
-                        else:
-                            async with httpx.AsyncClient() as client:
-                                res = await client.post(url, json=payload, headers=headers, timeout=10.0)
-                                res.raise_for_status()
+                    payload = {"recipient": {"id": sender_id}, "message": {"text": resp_text}}
+                    headers = {"Authorization": f"Bearer {config.get('access_token', '')}", "Content-Type": "application/json"}
+                    
+                    if settings.INTEGRATIONS_MODE == "mock":
+                        logger.info(f"[MOCK] Instagram Message to {sender_id}: {resp_text}")
+                    else:
+                        async with httpx.AsyncClient() as client:
+                            res = await client.post(url, json=payload, headers=headers, timeout=10.0)
+                            res.raise_for_status()
 
         return {"status": "success"}
     except Exception as e:
@@ -655,7 +637,10 @@ async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db
 @router.get("/tiktok/{business_id}/webhook")
 async def tiktok_webhook_verify(business_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)):
     config = await get_feature_config(db, business_id, "tiktok")
+    token = request.query_params.get("verify_token")
     challenge = request.query_params.get("challenge")
+    if token != config.get("verify_token"):
+        raise HTTPException(status_code=403, detail="Verification failed")
     return {"challenge": challenge}
 
 @router.post("/tiktok/{business_id}/webhook")
@@ -691,13 +676,17 @@ async def tiktok_webhook_receive(business_id: uuid.UUID, request: Request, db: A
                 await redis_client.setex(dedup_key, 86400, "1")
 
                 logger.info(f"[TIKTOK] DM from {sender_id} for business {business_id}")
-                ai_response, intent, _, _ = await process_chat_core(
+                ai_response, intent, _, _, smart_cards = await process_chat_core(
                     db=db, business_id=business_id, customer_platform="tiktok",
                     external_id=sender_id, content=text_content
                 )
                 
-                if ai_response:
-                    await transmit_tiktok_dm(config.get("access_token", ""), sender_id, ai_response)
+                if ai_response or smart_cards:
+                    resp_text = ai_response or ""
+                    if smart_cards:
+                        for c in smart_cards:
+                            resp_text += f"\nLink to {c.get('product_name')}: reply with buy:{c.get('product_id')}"
+                    await transmit_tiktok_dm(config.get("access_token", ""), sender_id, resp_text)
 
         # Handling Video Comments
         elif event_type == "comment.create":
@@ -718,7 +707,7 @@ async def tiktok_webhook_receive(business_id: uuid.UUID, request: Request, db: A
                 # We prefix the content with [COMMENT] so process_chat_core can catch it
                 special_payload = f"[COMMENT:{item_id}:{comment_id}] {text_content}"
                 
-                ai_response, intent, _, _ = await process_chat_core(
+                ai_response, intent, _, _, _ = await process_chat_core(
                     db=db, business_id=business_id, customer_platform="tiktok",
                     external_id=sender_id, content=special_payload
                 )

@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import List
 from app.schemas.chat import AIIntentSchema
 from app.models.domain import Product, Message
@@ -9,17 +10,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AIEngineService:
-    def __init__(self, business_id: str, business_type: str, products: List[Product], language: str = "en", ai_tone: str = "Professional", knowledge_base: str = None, bank_details: dict = None, is_tiktok_comment: bool = False, platform: str = "unknown"):
+    def __init__(self, business_id: str, business_type: str, products: List[Product], language: str = "en", ai_tone: str = "Professional", knowledge_base: str = None, bank_details: dict = None, is_tiktok_comment: bool = False, platform: str = "unknown", customer_name: str = None, customer_phone: str = None, staff_members: list = None):
         self.business_id = business_id
         self.business_type = business_type
         self.is_tiktok_comment = is_tiktok_comment
         self.platform = platform
+        self.customer_name = customer_name
+        self.customer_phone = customer_phone
         self.products = products
         lang_map = {"ar": "Arabic", "en": "English", "tr": "Turkish"}
         self.language = lang_map.get(language.lower(), language)
         self.ai_tone = ai_tone
         self.knowledge_base = knowledge_base
         self.bank_details = bank_details
+        self.staff_members = staff_members or []
         
     async def generate_system_prompt(self, db) -> str:
         products_context = json.dumps([
@@ -32,11 +36,11 @@ class AIEngineService:
         import datetime
         now_naive = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         future_naive = now_naive + datetime.timedelta(days=60)
-        date_str_today = now_naive.date().strftime("%Y-%m-%d")
+        date_str_today = now_naive.strftime("%Y-%m-%d %H:%M:%S (UTC)")
         
         appointments_res = await db.execute(
             select(Appointment).where(
-                Appointment.business_id == self.business_id, 
+                Appointment.business_id == uuid.UUID(self.business_id), 
                 Appointment.status.in_(["pending", "confirmed"]),
                 Appointment.start_time >= now_naive,
                 Appointment.start_time <= future_naive
@@ -44,7 +48,7 @@ class AIEngineService:
         )
         all_appts = appointments_res.scalars().all()
         booked_times = [
-            f"{a.start_time.isoformat()} to {a.end_time.isoformat()}" for a in all_appts if a.start_time and a.end_time
+            f"{a.staff_name or 'General'}: {a.start_time.isoformat()} to {a.end_time.isoformat()}" for a in all_appts if a.start_time and a.end_time
         ]
         booked_context = json.dumps(booked_times)
         
@@ -83,12 +87,24 @@ class AIEngineService:
   "private_dm": "string (A persuasive direct message sent to their inbox to answer them and push a sale)"
 """
 
-        return f"""Current Server Date: {date_str_today}
+        staff_instruction = ""
+        if self.staff_members:
+            staff_list = ", ".join(self.staff_members)
+            staff_instruction = f"""
+STAFF/DOCTORS AVAILABLE: {staff_list}
+IMPORTANT: This clinic has multiple staff members. When someone wants an appointment, you MUST ask them WHICH doctor/staff they prefer.
+Check the "CURRENTLY BOOKED APPOINTMENT TIMES" below carefully. It shows [Doctor Name: Time]. Ensure the specific doctor they want is NOT booked at that time.
+You MUST provide the chosen doctor's exact name in the `staff_name` field of the JSON data.
+"""
+            schema_fields = schema_fields.replace('"notes": "string"', '"notes": "string",\n    "staff_name": "string (The chosen doctor/staff)"')
 
-CRITICAL: THE CURRENT USER MESSAGE IS IN {self.language.upper()}. YOU MUST WRITE YOUR ENTIRE RESPONSE IN {self.language.upper()}. DO NOT USE ANY OTHER LANGUAGE!
+        return f"""Current Server Date and Time: {date_str_today}
 
 You are an AI assistant for a '{self.business_type}' business.
+Known Customer Name: {self.customer_name or 'UNKNOWN'}
+Known Phone Number: {self.customer_phone or 'UNKNOWN'}
 Available products/services: {products_context}.
+{staff_instruction}
 CURRENTLY BOOKED APPOINTMENT TIMES (DO NOT DOUBLE BOOK THESE): {booked_context}
 
 KNOWLEDGE BASE AND POLICIES:
@@ -104,13 +120,32 @@ PERSONALITY AND TONE RULE:
 
 You MUST respond with a perfectly valid JSON object matching this schema:
 {{{schema_fields}}}
-CRITICAL RULE 1: If the user wants to order a 'product', YOU MUST accurately identify the 'product_id' and set the intent to 'create_order'. IN ADDITION, inside your `response` string, you MUST include a short greeting text followed by a JSON block formatted exactly like this:
+CRITICAL RULE 1 FOR PRODUCTS: If the user wants to order a 'product', YOU MUST accurately identify the 'product_id' and set the intent to 'create_order'. IMPORTANT: Even if you are creating an order, you MUST explicitly answer any pending questions (e.g. waterproof status, colors, etc.) inside your `response` string before proceeding! IN ADDITION, inside your `response` string, you MUST include a short greeting text followed by a JSON block formatted exactly like this:
 ```json
 {{"product_id": "UUID", "product_name": "Name", "price": "Price", "image_url": "URL"}}
 ```
-This JSON block will be parsed by the UI into an interactive Smart Card.
-CRITICAL RULE 2: If the user wants a 'service' or expresses interest (e.g., 'بدي', 'istiyorum', 'tamam'), you MUST set intent to 'book_appointment'. If they haven't provided a time yet, you MUST ASK for the time IN THEIR LANGUAGE inside the `response` property of your JSON. Never switch to English unless the user speaks English. Once they specify a time, verify it does NOT conflict with the BOOKED APPOINTMENT TIMES. If conflict: suggest a different time. If clear: provide 'product_id', and explicitly populate 'appointment_time' in the data payload.
-If the product/service is not available, set intent to 'none'.
+(This JSON block will be parsed by the UI into an interactive Smart Card).
+
+CONVERSATIONAL BOOKING WORKFLOW FOR SERVICES:
+You are a smart, professional human-like assistant, not a robotic form-filler. When a customer wants to book an appointment, subtly guide them through a natural conversation:
+1. UNDERSTAND THE NEED: If they just say "I want an appointment", DO NOT ask for their phone number immediately! Ask them what they are suffering from or what specific service they need.
+2. GET THEIR NAME EARLY: Ask for their name early on so you can address them professionally (use the Known Customer Name if already provided).
+3. NEGOTIATE TIME: Ask if they want the nearest available time or a specific date/time. Check the BOOKED APPOINTMENT TIMES to avoid conflicts. DO NOT suggest or agree to a time that has already passed (refer to Current Server Date and Time).
+4. GATHER CONTACT INFO: Once the service and time are agreed upon, ask for their phone number to finalize the booking (unless Known Phone Number is provided).
+
+CRITICAL STRICT INTENT RULE: 
+NEVER use the 'book_appointment' intent while you are still chatting or gathering information! Keep the intent as 'none' and just talk to them normally!
+ONLY use the 'book_appointment' intent at the VERY END of the conversation, when the user has explicitly provided and you have confirmed ALL 4 of the following:
+- The specific 'product_id' (the service they need).
+- A valid, agreed-upon future 'appointment_time'.
+- Their 'customer_name'.
+- Their 'phone' number.
+NEVER GUESS OR INVENT ANY OF THESE VALUES! If you don't confidently have all four, you MUST keep intent as 'none' and ask the user.
+IMPORTANT ENFORCEMENT: Once you have successfully confirmed the booking in a previous message, DO NOT use 'book_appointment' again. Set intent back to 'none' and just answer their follow up questions.
+WARNING: DO NOT ask for an "appointment time" or "time to talk" if the user is just buying a physical product (like a watch)! Only ask for time if they are booking a service.
+
+If the product/service is not available, set intent to 'none' and politely inform them.
+If the user asks about a product or you are recommending one, set intent to 'suggest_product' and provide the 'product_id'.
 If the user wants to speak to a human, set intent to 'handoff_human'.
 If the user is asking for technical help, bug reports, or error resolution about the platform itself, set intent to 'technical_support'.
 Otherwise, use 'none'.
@@ -122,8 +157,9 @@ LEAD PRIORITY RULE:
 "None": Unable to determine.
 
 LANGUAGE RULE:
-You are a multilingual assistant. Always respond in the SAME language the user is currently using.
-STRICT RULE: The detected language of the VERY LAST message is {self.language.upper()}. You MUST respond ONLY in {self.language.upper()}. If you were speaking Arabic before, you MUST switch to {self.language.upper()} instantly.
+You are a highly capable multilingual assistant. CURRENT DETECTED LANGUAGE OF THE USER: {self.language}.
+You MUST ALWAYS respond strictly in {self.language}! Do not reply in Arabic if the detected language is Turkish. Do not reply in Turkish if the detected language is Arabic.
+Even if the user's latest message is just a number, an emoji, or a short ambiguous word, you MUST STILL reply in {self.language}. DO NOT switch to English or any other language randomly!
 
 FINAL ENFORCEMENT:
 You MUST output ONLY a pure JSON object. NO markdown formatting, NO extra text outside the JSON.
@@ -137,7 +173,10 @@ You MUST output ONLY a pure JSON object. NO markdown formatting, NO extra text o
         messages = [{"role": "system", "content": system_prompt}]
 
         if conversation is not None:
-            query = select(Message).where(Message.conversation_id == conversation.id)
+            query = select(Message).where(
+                Message.conversation_id == conversation.id,
+                Message.business_id == uuid.UUID(self.business_id)
+            )
             if user_msg_id:
                 query = query.where(Message.id != user_msg_id)
             
@@ -167,15 +206,11 @@ You MUST output ONLY a pure JSON object. NO markdown formatting, NO extra text o
             provider = result["provider"]
             model = result["model"]
 
-            # Clean markdown code blocks from the response text
             cleaned_text = response_text.strip()
-            if cleaned_text.startswith("```json"):
-                cleaned_text = cleaned_text[7:]
-            elif cleaned_text.startswith("```"):
-                cleaned_text = cleaned_text[3:]
-            if cleaned_text.endswith("```"):
-                cleaned_text = cleaned_text[:-3]
-            cleaned_text = cleaned_text.strip()
+            start_idx = cleaned_text.find('{')
+            end_idx = cleaned_text.rfind('}')
+            if start_idx != -1 and end_idx != -1:
+                cleaned_text = cleaned_text[start_idx:end_idx+1]
 
             parsed_json = json.loads(cleaned_text)
             return {
@@ -189,4 +224,16 @@ You MUST output ONLY a pure JSON object. NO markdown formatting, NO extra text o
 
     def validate_intent(self, ai_output: dict) -> AIIntentSchema:
         """Validates that the AI output adheres strictly to the contract."""
-        return AIIntentSchema(**ai_output)
+        from pydantic import ValidationError
+        try:
+            return AIIntentSchema(**ai_output)
+        except ValidationError as e:
+            logger.warning(f"AI output failed strict schema validation: {e}. Output was {ai_output}")
+            fallback_response = "I encountered a minor formatting issue while processing your request. Could you clarify your choice?" 
+            return AIIntentSchema(
+                intent="none",
+                confidence=0.0,
+                response=fallback_response,
+                lead_priority="None",
+                data={}
+            )

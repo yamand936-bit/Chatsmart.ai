@@ -115,7 +115,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/app" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('overview') || 'Overview'}</Link>
             <Link href="/app/products" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('products')}</Link>
             <Link href="/app/orders" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('orders')}</Link>
-            {businessType === 'booking' && (
+            {(businessType === 'booking' || businessType === 'services') && (
               <Link href="/app/calendar" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('calendar', { fallback: 'التقويم المشروط' })}</Link>
             )}
             <Link href="/app/chat" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('chat')}</Link>

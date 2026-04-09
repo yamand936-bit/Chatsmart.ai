@@ -89,3 +89,22 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+import traceback
+from fastapi.responses import JSONResponse
+from app.services.notification_service import NotificationService
+import asyncio
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb_str = traceback.format_exc()
+    logger.error(f"Global unhandled exception at {request.url}: {exc}\n{tb_str}")
+    
+    # Fire off notification without waiting
+    error_context = f"Unhandled Exception at {request.method} {request.url.path}"
+    asyncio.create_task(NotificationService.dispatch_admin_error(error_context, f"Exception: {str(exc)}\n\nTraceback:\n{tb_str}"))
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. The admin has been notified."}
+    )

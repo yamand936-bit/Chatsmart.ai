@@ -55,6 +55,9 @@ class SettingsUpdate(BaseModel):
     logo_url: Optional[str] = None
     sheet_url: Optional[str] = None
     business_type: Optional[str] = None
+    notification_email: Optional[str] = None
+    notification_telegram: Optional[str] = None
+    staff_members: Optional[List[str]] = None
 
 class SyncRequest(BaseModel):
     sheet_url: str
@@ -63,17 +66,19 @@ class AppointmentUpdate(BaseModel):
     start_time: str
     end_time: str
 
-class ToneUpdate(BaseModel):
-    tone: str
+class InstagramConfigureRequest(BaseModel):
+    page_id: str
+    access_token: str
+    action: str # 'validate' or 'save'
 
 class TelegramConfigureRequest(BaseModel):
     bot_token: str
     webhook_secret: str
     action: str # 'validate' or 'save'
 
-class TelegramConfigureRequest(BaseModel):
-    bot_token: str
-    webhook_secret: str
+class ToneUpdate(BaseModel):
+    tone: str
+
     action: str # 'validate' or 'save'
 
 # ── Response Schemas ──────────────────────────────────────────────────────────
@@ -508,6 +513,9 @@ async def get_settings(business_id: uuid.UUID = Depends(get_merchant_tenant), db
             "primary_color": business.primary_color,
             "sheet_url": business.sheet_url,
             "business_type": business.business_type,
+            "notification_email": business.notification_email,
+            "notification_telegram": business.notification_telegram,
+            "staff_members": business.staff_members or [],
             "active_features": active_features
         }
     }
@@ -532,6 +540,12 @@ async def update_settings(data: SettingsUpdate, business_id: uuid.UUID = Depends
          business.sheet_url = data.sheet_url
     if data.business_type is not None:
          business.business_type = data.business_type
+    if data.notification_email is not None:
+         business.notification_email = data.notification_email
+    if data.notification_telegram is not None:
+         business.notification_telegram = data.notification_telegram
+    if data.staff_members is not None:
+         business.staff_members = data.staff_members
          
     await db.commit()
     return {"status": "ok", "message": "Settings updated"}

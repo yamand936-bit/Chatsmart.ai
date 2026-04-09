@@ -15,9 +15,9 @@ class Customer(BaseModel):
     business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("businesses.id", ondelete="CASCADE"), index=True)
     platform: Mapped[str] = mapped_column(String(50))  # e.g., 'whatsapp', 'telegram'
     external_id: Mapped[str] = mapped_column(String(255))
-    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    tags: Mapped[Optional[list]] = mapped_column(JSON, default=list, nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    tags: Mapped[List | None] = mapped_column(JSON, default=list, nullable=True)
 
     business: Mapped["Business"] = relationship("Business", back_populates="customers")
     conversations: Mapped[List["Conversation"]] = relationship("Conversation", back_populates="customer", cascade="all, delete-orphan")
@@ -35,7 +35,8 @@ class Appointment(BaseModel):
     start_time: Mapped[datetime] = mapped_column(DateTime)
     end_time: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(50), default="confirmed")  # pending, confirmed, cancelled
-    notes: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    staff_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     customer: Mapped["Customer"] = relationship("Customer", back_populates="appointments")
     business: Mapped["Business"] = relationship("Business", back_populates="appointments")
@@ -47,11 +48,11 @@ class Product(BaseModel):
 
     business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("businesses.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(255))
-    description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     price: Mapped[float] = mapped_column(Float, default=0.0)
-    image_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     item_type: Mapped[str] = mapped_column(String(50), default="product") # product, service
-    duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True) # Duration in minutes if service
+    duration: Mapped[int | None] = mapped_column(Integer, nullable=True) # Duration in minutes if service
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     business: Mapped["Business"] = relationship("Business", back_populates="products")
@@ -79,7 +80,7 @@ class Conversation(BaseModel):
     business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("businesses.id", ondelete="CASCADE"), index=True)
     customer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="bot")  # bot, human
-    lead_priority: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # Hot, Warm, Cold, None
+    lead_priority: Mapped[str | None] = mapped_column(String(50), nullable=True) # Hot, Warm, Cold, None
 
     customer: Mapped["Customer"] = relationship("Customer", back_populates="conversations")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
@@ -96,9 +97,12 @@ class Message(BaseModel):
     
     sender_type: Mapped[str] = mapped_column(String(50))  # user, bot, agent
     content: Mapped[str] = mapped_column(String)
-    media_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    campaign_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    response_time: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    intent: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    model_used: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    media_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    campaign_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    response_time: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
 
@@ -117,9 +121,9 @@ class UsageLog(BaseModel):
 class SystemErrorLog(BaseModel):
     __tablename__ = "system_error_logs"
 
-    business_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("businesses.id", ondelete="SET NULL"), nullable=True, index=True)
+    business_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("businesses.id", ondelete="SET NULL"), nullable=True, index=True)
     error_type: Mapped[str] = mapped_column(String(100), index=True) # e.g. "webhook_failed", "ai_error", "internal"
     message: Mapped[str] = mapped_column(String, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
 
-    business: Mapped[Optional["Business"]] = relationship("Business")
+    business: Mapped["Business | None"] = relationship("Business")

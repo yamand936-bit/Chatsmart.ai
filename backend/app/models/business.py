@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from sqlalchemy import String, JSON, Boolean, ForeignKey, Float, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -15,16 +15,19 @@ class Business(BaseModel):
     monthly_quota: Mapped[int] = mapped_column(Integer, default=100000)
     
     plan_name: Mapped[str] = mapped_column(String(50), default="free")
-    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subscription_status: Mapped[str] = mapped_column(String(50), default="trial")
     ai_tone: Mapped[str] = mapped_column(String(50), default="Professional")
-    bank_details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    knowledge_base: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    sheet_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    logo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    primary_color: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="#2563eb")
+    bank_details: Mapped[Dict | None] = mapped_column(JSON, nullable=True)
+    knowledge_base: Mapped[str | None] = mapped_column(String, nullable=True)
+    sheet_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    primary_color: Mapped[str | None] = mapped_column(String(50), nullable=True, default="#2563eb")
     language: Mapped[str] = mapped_column(String(50), default="ar", server_default="ar")
+    notification_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notification_telegram: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    staff_members: Mapped[List | None] = mapped_column(JSON, default=list, nullable=True)
     
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="business", cascade="all, delete-orphan")

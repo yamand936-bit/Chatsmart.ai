@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # Telegram Integration (Global Fallbacks)
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_SECRET_TOKEN: str | None = None
+    ADMIN_TELEGRAM_CHAT_ID: str | None = None
 
     # Meta Integration
     META_APP_ID: str | None = None
@@ -53,12 +54,17 @@ class Settings(BaseSettings):
     STRIPE_PRICE_PRO: str | None = None
     STRIPE_PRICE_ENTERPRISE: str | None = None
 
+    # SMTP Integration (For Merchant Notifications)
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
 
-import os
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+import pytz

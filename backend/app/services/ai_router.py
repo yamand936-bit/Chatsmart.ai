@@ -54,7 +54,21 @@ class AIRouter:
                                 return {"text": text, "provider": provider, "model": openai_fallback}
                         except Exception as inner_e:
                             logger.error(f"Fallback model also failed: {inner_e}")
-                            break
+                            # Cross-provider failover
+                            cross_provider = "gemini" if provider == "openai" else "openai"
+                            logger.warning(f"Attempting cross-provider failover to {cross_provider}")
+                            try:
+                                if cross_provider == "gemini":
+                                    from app.services.gemini_service import GeminiService
+                                    text = await GeminiService.generate(messages, model=gemini_fallback)
+                                    return {"text": text, "provider": "gemini", "model": gemini_fallback}
+                                else:
+                                    from app.services.openai_service import OpenAIService
+                                    text = await OpenAIService.generate(messages, model=openai_fallback)
+                                    return {"text": text, "provider": "openai", "model": openai_fallback}
+                            except Exception as cross_err:
+                                logger.error(f"Cross-provider failover also failed: {cross_err}")
+                                break
                 else:
                     logger.error(f"Error with primary provider {provider}: {e}")
                     break

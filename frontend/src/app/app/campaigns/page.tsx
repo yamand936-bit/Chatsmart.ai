@@ -21,7 +21,7 @@ export default function CampaignsPage() {
     setLoading(true);
     try {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/campaigns/send`, {
-        target_tags: [tag],
+        tag: tag,
         instructions: instructions
       }, { withCredentials: true });
       
