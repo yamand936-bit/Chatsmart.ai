@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchMe: async () => {
     try {
       axios.defaults.withCredentials = true;
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`, { withCredentials: true });
       set({ user: res.data, isHydrated: true });
     } catch (err) {
       set({ user: null, isHydrated: true });
