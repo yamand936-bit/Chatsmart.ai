@@ -209,10 +209,15 @@ async def process_chat_core(
 
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
+    
+    from app.services.funnel_state import FunnelStateService
+    current_funnel_state = await FunnelStateService.get_state(str(conversation.id))
+    
     ai_engine = AIEngineService(
         business_id=str(business.id),
         business_type=business.business_type, 
         products=products, 
+        funnel_state=current_funnel_state,
         language=detected_lang,
         ai_tone=business.ai_tone,
         knowledge_base=business.knowledge_base,
@@ -236,6 +241,15 @@ async def process_chat_core(
         
         ai_intent = ai_engine.validate_intent(raw_res["ai_output"])
         
+        if ai_intent.booking_in_progress or ai_intent.data or getattr(ai_intent, 'funnel_stage', 'none') != "none":
+            new_data = ai_intent.data or {}
+            new_data["funnel_stage"] = getattr(ai_intent, 'funnel_stage', 'none')
+            new_data["booking_in_progress"] = getattr(ai_intent, 'booking_in_progress', False)
+            await FunnelStateService.update_state(str(conversation.id), new_data)
+            
+        if ai_intent.intent in ["book_appointment", "create_order"]:
+            await FunnelStateService.clear_state(str(conversation.id))
+            
         provider = raw_res["provider"]
         model = raw_res["model"]
 

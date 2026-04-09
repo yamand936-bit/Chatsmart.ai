@@ -21,4 +21,6 @@ class AIIntentSchema(BaseModel):
     public_reply: Optional[str] = Field(None, description="Public reply for TikTok")
     private_dm: Optional[str] = Field(None, description="Private DM for TikTok")
     lead_priority: Literal["Hot", "Warm", "Cold", "None"] = Field("None", description="Priority of the lead.")
-    data: Optional[Dict[str, Any]] = Field({}, description="Extracted data. MUST contain product_id if intent is create_order or book_appointment. For book_appointment, must contain appointment_time and staff_name (if applicable).")
+    booking_in_progress: bool = Field(False, description="Set this to true to track when you are actively answering questions about a booking or collecting info for a booking.")
+    funnel_stage: Literal["objection_handling", "negotiation", "closing", "gathering_info", "none"] = Field("none", description="The current sales funnel stage.")
+    data: Optional[Dict[str, Any]] = Field({}, description="Extracted data. MUST contain product_id if intent is create_order or book_appointment. For book_appointment, must contain appointment_time and staff_name (if applicable). For hotel bookings, include check_in and check_out.")
