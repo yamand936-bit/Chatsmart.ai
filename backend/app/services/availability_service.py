@@ -67,7 +67,7 @@ class AvailabilityService:
                     )
                     
                     if not is_booked:
-                        free_slots.append(slot_time.strftime("%Y-%m-%d %H:%00"))
+                        free_slots.append(slot_time.strftime("%Y-%m-%d %H:00"))
                         if len(free_slots) >= 20:
                             break
                 if len(free_slots) >= 20:
