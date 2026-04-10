@@ -15,8 +15,8 @@ class ChatMessageResponse(BaseModel):
 
 # AI Contract Strict Schema
 class AIIntentSchema(BaseModel):
-    intent: Literal["create_order", "book_appointment", "suggest_product", "none", "handoff_human", "technical_support"] = Field(..., description="Action intent.")
-    confidence: float = Field(..., description="Confidence score from 0.0 to 1.0")
+    intent: Literal["create_order", "book_appointment", "suggest_product", "none", "handoff_human", "technical_support"] = Field("none", description="Action intent.")
+    confidence: float = Field(0.9, description="Confidence score from 0.0 to 1.0")
     response: str = Field("", description="Response message for the user")
     public_reply: Optional[str] = Field(None, description="Public reply for TikTok")
     private_dm: Optional[str] = Field(None, description="Private DM for TikTok")

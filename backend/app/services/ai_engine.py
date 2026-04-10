@@ -80,9 +80,14 @@ class AIEngineService:
                 messages.append({"role": "user" if m.sender_type == "user" else "assistant", "content": m.content})
 
         user_content = user_message
-        if media_b64:
-            user_content = [{"type": "text", "text": user_message or "Image"}, {"type": "image_url", "image_url": {"url": media_b64}}]
         
+        reminder = "\n\n[CRITICAL REMINDER: You MUST reply with ONLY a valid JSON object. Put your reply inside the 'response' key. DO NOT output plain text.]"
+        
+        if media_b64:
+            user_content = [{"type": "text", "text": (user_message or "Image") + reminder}, {"type": "image_url", "image_url": {"url": media_b64}}]
+        else:
+            user_content = str(user_message) + reminder
+            
         messages.append({"role": "user", "content": user_content})
 
         try:
