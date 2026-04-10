@@ -33,7 +33,8 @@ export default function CampaignsPage() {
         toast.error('حدث خطأ أثناء إطلاق الحملة');
       }
     } catch (e: any) {
-      toast.error(e.message || 'حدث خطأ غير متوقع');
+      const errorMessage = e.response?.data?.detail || e.message || 'حدث خطأ غير متوقع';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -72,6 +73,8 @@ export default function CampaignsPage() {
               />
               <p className="text-xs text-slate-500 mt-2">
                 {t('tag_desc')}
+                <br/>
+                <span className="font-semibold text-indigo-500 mt-1 inline-block">💡 اكتب &quot;all&quot; أو &quot;الكل&quot; لاستهداف جميع العملاء المسجلين.</span>
               </p>
             </div>
 

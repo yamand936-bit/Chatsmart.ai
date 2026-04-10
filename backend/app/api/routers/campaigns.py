@@ -31,12 +31,17 @@ async def send_smart_campaign(
     matched_customers = []
     
     for c in all_customers.scalars().all():
-        if c.tags and isinstance(c.tags, list):
+        if request.tag.lower() in ["all", "الكل", "تحديد الكل"]:
+            matched_customers.append(c)
+        elif c.tags and isinstance(c.tags, list):
             if any(request.tag.lower() in t.lower() for t in c.tags):
                 matched_customers.append(c)
                 
     if not matched_customers:
-        raise HTTPException(status_code=404, detail=f"No customers found matching tag: {request.tag}")
+        raise HTTPException(
+            status_code=404, 
+            detail="لم يتم العثور على أي عملاء يمتلكون هذا الوسم (Tag). يرجى التأكد من كتابة وسم موجود ضمن قائمة عملائك واستخدامه مسبقاً."
+        )
 
     background_tasks.add_task(process_campaign_batch, str(business_id), [str(c.id) for c in matched_customers], request.instructions)
     
