@@ -320,14 +320,16 @@ async def process_chat_core(
                         
                         # ai_msg_content and intent_value stay as the AI set them.
                     else:
-                        if ai_intent.intent in ["create_order", "suggest_product"]:
-                            ai_msg_content = "عذراً، لم أتمكن من العثور على هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
-                            intent_value = "none"
+                        if not ai_msg_content.strip():
+                            ai_msg_content = "عذراً، لم أتمكن من العثور على تفاصيل هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
+                        intent_value = "none"
 
                 except ValueError:
+                    if not ai_msg_content.strip():
+                        ai_msg_content = "عذراً، لم يتم العثور على المنتج المطلوب." if detected_lang in ["ar", "Arabic"] else ("Seçilen ürün bulunamadı." if detected_lang in ["tr", "Turkish"] else "Product not found.")
                     if ai_intent.intent in ["create_order", "suggest_product"]:
-                        ai_msg_content = "عذراً، حدث خطأ في تحديد المنتج. يرجى إعادة المحاولة." if detected_lang in ["ar", "Arabic"] else ("Ürünü belirlerken bir hata oluştu. Lütfen tekrar deneyin." if detected_lang in ["tr", "Turkish"] else "There was an error identifying the product.")
                         intent_value = "error"
+
 
         elif ai_intent.intent == "book_appointment":
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
