@@ -97,7 +97,6 @@ IMPORTANT: The following information is ALREADY SAVED in the system state. DO NO
 
 Available products/services: {products_context}
 Available Staff/Doctors/Rooms: {staff_str}
-
 === SYSTEM AVAILABILITY DATA ===
 {availability_info}
 ================================
@@ -107,20 +106,6 @@ KNOWLEDGE BASE:
 
 PAYMENT/BANK DETAILS:
 {payment_info}
-
-CRITICAL JSON STRUCTURE RULE:
-You MUST output a valid JSON object. Do NOT wrap it in markdown block quotes. Do NOT add ANY text outside the JSON.
-Your JSON MUST have exactly these keys and follow these types:
-{{
-  "intent": "none" | "create_order" | "book_appointment" | "suggest_product" | "handoff_human" | "technical_support",
-  "confidence": 0.9,
-  "lead_priority": "None" | "Cold" | "Warm" | "Hot",
-  "booking_in_progress": true|false,
-  "funnel_stage": "none" | "gathering_info" | "objection_handling" | "negotiation" | "closing",
-  "response": "Your actual text reply to the customer.",
-  "data": {{}} // e.g. "appointment_time": "YYYY-MM-DD HH:MM", "staff_name": "Doctor Name", "product_id": "UUID", "phone": "Number"
-}}
-If a key is not needed, leave it empty or default, BUT do not remove the key from the JSON.
 
 LANGUAGE RULE:
 You support Arabic, Turkish, and English.
@@ -133,5 +118,19 @@ Maintain the primary language perfectly to avoid confusing the user!!
 {sales_directive}
 
 {domain_rules}
+
+CRITICAL JSON STRUCTURE RULE (MUST OBEY):
+You MUST output a valid JSON object. Do NOT wrap it in markdown block quotes. Do NOT add ANY text outside the JSON. All your questions, CTAs, and conversational text MUST go inside the "response" field ONLY.
+Your JSON MUST have exactly these keys and follow these types:
+{{
+  "intent": "none" | "create_order" | "book_appointment" | "suggest_product" | "handoff_human" | "technical_support",
+  "confidence": 0.9,
+  "lead_priority": "None" | "Cold" | "Warm" | "Hot",
+  "booking_in_progress": true|false,
+  "funnel_stage": "none" | "gathering_info" | "objection_handling" | "negotiation" | "closing",
+  "response": "Your actual text reply to the customer.",
+  "data": {{}}
+}}
+If a key is not needed, leave it empty or default, BUT do not remove the key from the JSON.
 """
         return prompt

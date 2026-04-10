@@ -103,11 +103,23 @@ class AIEngineService:
             logger.error(f"AI Generator Error: {e}")
             raise Exception("AI processing failed")
 
-    def validate_intent(self, ai_output: dict) -> AIIntentSchema:
+    def validate_intent(self, ai_output_str_or_dict) -> AIIntentSchema:
         try:
-            return AIIntentSchema(**ai_output)
+            if isinstance(ai_output_str_or_dict, dict):
+                data = ai_output_str_or_dict
+            else:
+                cleaned = str(ai_output_str_or_dict).strip()
+                if cleaned.startswith("```json"):
+                    cleaned = cleaned[7:]
+                if cleaned.startswith("```"):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                data = json.loads(cleaned.strip())
+                
+            return AIIntentSchema(**data)
         except Exception as e:
-            logger.warning(f"Validation failed: {e}. Output was {ai_output}")
+            logger.warning(f"Validation failed: {e}. Output was {ai_output_str_or_dict}")
             fallback_ar = "عذراً، حدث خطأ تقني بسيط أثناء معالجة طلبك المتسلسل. هل يمكنك تأكيد خيارك الأخير؟"
             fallback_tr = "İsteğinizi işlerken küçük bir teknik hata oluştu. Seçiminizi tekrar onaylayabilir misiniz?"
             fallback_en = "I encountered a minor formatting issue while processing your request. Could you clarify your choice?"
