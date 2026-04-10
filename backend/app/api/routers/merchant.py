@@ -1008,3 +1008,28 @@ async def get_conversation_messages(conversation_id: str, business_id: uuid.UUID
     )
     msgs = result.scalars().all()
     return {"status": "ok", "data": [{"id": str(m.id), "role": m.sender_type, "text": m.content} for m in msgs]}
+
+class ConversationStatusUpdate(BaseModel):
+    status: str
+
+@router.patch("/conversations/{conversation_id}/status")
+async def update_conversation_status(
+    conversation_id: str,
+    payload: ConversationStatusUpdate,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation
+    
+    if payload.status not in ["bot", "human"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404)
+        
+    conv.status = payload.status
+    db.add(conv)
+    await db.commit()
+    return {"status": "ok"}

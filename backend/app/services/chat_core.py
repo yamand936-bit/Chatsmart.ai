@@ -269,12 +269,26 @@ async def process_chat_core(
             db.add(conversation)
 
         # ── 7. Intent-specific processing ─────────────────────────────────────
-        if ai_intent.intent in ["create_order", "suggest_product"]:
+        elif ai_intent.intent in ["create_order", "suggest_product", "none"]:
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
 
+            # Fallback for hidden JSON blocks embedded in response text by LLM
             if not product_id_str:
-                # AI did not identify a product — do not create order, let AI response pass through
-                intent_value = "none"
+                import re
+                card_match = re.search(r"```json\n(.*?)\n```", ai_msg_content, re.DOTALL)
+                if card_match:
+                    try:
+                        import json
+                        card_data = json.loads(card_match.group(1))
+                        product_id_str = card_data.get("product_id")
+                        # Strip it so it doesn't show raw json object as text to the user
+                        ai_msg_content = ai_msg_content.replace(card_match.group(0), "").strip()
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+
+            if not product_id_str:
+                if ai_intent.intent == "suggest_product" or ai_intent.intent == "create_order":
+                    intent_value = "none"
             else:
                 try:
                     target_pid = uuid.UUID(product_id_str)
@@ -283,20 +297,19 @@ async def process_chat_core(
                     )
 
                     if matched_product:
-                        new_order = Order(
-                            business_id=business_id,
-                            customer_id=customer.id,
-                            status="pending",
-                            total_amount=matched_product.price,
-                            payload={
-                                "product_name": matched_product.name,
-                                "product_id": str(target_pid),
-                                "quantity": 1,
-                            },
-                        )
                         if ai_intent.intent == "create_order":
-                            # C-2 Fix: Do not create order here. Only send the Smart Card allowing user to confirm.
-                            pass
+                            new_order = Order(
+                                business_id=business_id,
+                                customer_id=customer.id,
+                                status="pending",
+                                total_amount=matched_product.price,
+                                payload={
+                                    "product_name": matched_product.name,
+                                    "product_id": str(target_pid),
+                                    "quantity": 1,
+                                },
+                            )
+                            # C-2 Fix: Do not save new_order here. Wait for explicit user confirmation via card button.
                         
                         smart_cards.append({
                             "product_id": str(matched_product.id),
@@ -307,13 +320,14 @@ async def process_chat_core(
                         
                         # ai_msg_content and intent_value stay as the AI set them.
                     else:
-                        ai_msg_content = "عذراً، لم أتمكن من العثور على هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
-                        intent_value = "none"
+                        if ai_intent.intent in ["create_order", "suggest_product"]:
+                            ai_msg_content = "عذراً، لم أتمكن من العثور على هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
+                            intent_value = "none"
 
                 except ValueError:
-                    # AI returned a non-UUID string for product_id.
-                    ai_msg_content = "عذراً، حدث خطأ في تحديد المنتج. يرجى إعادة المحاولة." if detected_lang in ["ar", "Arabic"] else ("Ürünü belirlerken bir hata oluştu. Lütfen tekrar deneyin." if detected_lang in ["tr", "Turkish"] else "There was an error identifying the product.")
-                    intent_value = "error"
+                    if ai_intent.intent in ["create_order", "suggest_product"]:
+                        ai_msg_content = "عذراً، حدث خطأ في تحديد المنتج. يرجى إعادة المحاولة." if detected_lang in ["ar", "Arabic"] else ("Ürünü belirlerken bir hata oluştu. Lütfen tekrar deneyin." if detected_lang in ["tr", "Turkish"] else "There was an error identifying the product.")
+                        intent_value = "error"
 
         elif ai_intent.intent == "book_appointment":
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
@@ -396,6 +410,9 @@ async def process_chat_core(
         elif ai_intent.intent == "handoff_human":
             conversation.status = "human"
             db.add(conversation)
+            import asyncio
+            msg_alert = f"🚨 Human Handoff Requested!\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nPlatform: {customer.platform}\n\nPlease check your Inbox in the CRM."
+            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert))
             # ai_msg_content and intent_value stay as the AI set them.
 
         elif ai_intent.intent == "technical_support":

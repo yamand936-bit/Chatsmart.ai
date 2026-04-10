@@ -288,9 +288,36 @@ export default function ChatPage() {
               <h2 className="text-xl font-bold">{selectedConversation ? "عرض المحادثة" : t('title')}</h2>
               <p className="text-sm opacity-80">{selectedConversation ? 'تتبع طلبات العميل' : t('subtitle')}</p>
             </div>
-            <button onClick={() => handleOpenOrderModal()} className="bg-white text-[var(--primary-color,#2563eb)] font-bold px-4 py-2 rounded shadow-sm hover:opacity-90 transition text-sm">
-              {t('convert_to_order_btn')}
-            </button>
+            <div className="flex gap-2 items-center">
+              {selectedConversation && (
+                <button
+                  onClick={async () => {
+                     const currentConvo = conversations.find(c => c.id === selectedConversation);
+                     if(currentConvo) {
+                         const newStatus = currentConvo.status === 'bot' ? 'human' : 'bot';
+                         setConversations(prev => prev.map(c => c.id === selectedConversation ? {...c, status: newStatus} : c));
+                         toast.success(newStatus === 'bot' ? 'تم تشغيل البوت بنجاح' : 'تم إيقاف البوت مؤقتاً');
+                         try {
+                           await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/status`, { status: newStatus }, { withCredentials: true });
+                         } catch (e) {
+                           toast.error('حدث خطأ أثناء تغيير الحالة');
+                           setConversations(prev => prev.map(c => c.id === selectedConversation ? {...c, status: currentConvo.status} : c));
+                         }
+                     }
+                  }}
+                  className={`font-bold px-3 py-1.5 rounded text-sm transition ${
+                    conversations.find(c => c.id === selectedConversation)?.status === 'bot' 
+                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-inner border border-green-400' 
+                    : 'bg-red-500 hover:bg-red-600 text-white shadow-sm border border-red-400'
+                  }`}
+                >
+                  {conversations.find(c => c.id === selectedConversation)?.status === 'bot' ? '🤖 AI Active' : '⏸️ AI Paused'}
+                </button>
+              )}
+              <button onClick={() => handleOpenOrderModal()} className="bg-white text-[var(--primary-color,#2563eb)] font-bold px-4 py-2 rounded shadow-sm hover:opacity-90 transition text-sm">
+                {t('convert_to_order_btn')}
+              </button>
+            </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 space-y-4" dir={dir}>
