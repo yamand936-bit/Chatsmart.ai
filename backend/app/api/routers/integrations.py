@@ -250,7 +250,22 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
                         db.add(new_order)
                         await db.commit()
                         logger.info(f"Order created natively via Telegram Callback for {cb_user_id}")
-                        await transmit_telegram(config.get("bot_token", ""), chat_id, f"✅ تم استلام طلبك للمنتج: *{product.name}*\nالحالة: قيد المراجعة (Pending). سنقوم بالتواصل معك قريباً!")
+                        
+                        # Pass a SYSTEM directive to AI so it natively asks for Address and phone
+                        system_prompt_inj = f"[SYSTEM NOTIFICATION: The user just clicked the 'Buy Now' button for the product: {product.name}. Please acknowledge their order enthusiastically, and then ask them to provide their FULL DELIVERY ADDRESS and PHONE NUMBER rigidly so we can ship the item.]"
+                        
+                        ai_resp, intent, _, _, sc = await process_chat_core(
+                            db=db,
+                            business_id=business_id,
+                            customer_platform="telegram",
+                            external_id=cb_user_id,
+                            content=system_prompt_inj,
+                            media_url=None,
+                            media_b64=None
+                        )
+                        
+                        if ai_resp or sc:
+                            await transmit_telegram(config.get("bot_token", ""), chat_id, ai_resp or "", sc)
             except Exception as e:
                 logger.error(f"Telegram Callback Order failed: {e}")
         return {"status": "success"}
