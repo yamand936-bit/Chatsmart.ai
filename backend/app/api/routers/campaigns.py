@@ -116,8 +116,12 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
                             await transmit_telegram(t_config.get("bot_token"), customer.external_id, personalized_message)
                 except Exception as ex:
                     logger.error(f"Failed to transmit campaign message to {customer.platform}: {ex}")
+                    from app.models.domain import SystemErrorLog
+                    session.add(SystemErrorLog(business_id=uuid.UUID(business_id), error_type="campaign_transmit_failed", message=str(ex)))
                     
             except Exception as e:
                 logger.error(f"Campaign failed for customer {cid}: {e}")
+                from app.models.domain import SystemErrorLog
+                session.add(SystemErrorLog(business_id=uuid.UUID(business_id), error_type="campaign_gen_failed", message=str(e)))
             
         await session.commit()
