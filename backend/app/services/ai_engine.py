@@ -44,7 +44,9 @@ class AIEngineService:
         staff_str = ", ".join(self.staff_members) if self.staff_members else "General Staff"
         payment_info = json.dumps(self.bank_details, ensure_ascii=False) if self.bank_details else 'No specific payment instructions provided.'
 
-        date_str_today = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S (UTC)")
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_ast = now_utc + datetime.timedelta(hours=3)
+        date_str_today = now_ast.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S (AST/Turkey Time)")
 
         return DomainPromptFactory.generate_prompt(
             business_type=self.business_type,

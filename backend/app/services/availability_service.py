@@ -12,7 +12,9 @@ class AvailabilityService:
         For clinics: Finds top 20 free 30-min slots during business hours.
         For hotels: Returns booked date ranges (nights) to allow the LLM to book anything outside them.
         """
-        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        # Apply +03:00 Timezone (AST/TRT) which is the target market zone
+        now = (now_utc + datetime.timedelta(hours=3)).replace(tzinfo=None)
         future = now + datetime.timedelta(days=next_days)
         
         appointments_res = await db.execute(
