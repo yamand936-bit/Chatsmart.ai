@@ -88,10 +88,27 @@ class AIEngineService:
         lower_msg = str(user_message).strip().lower()
         if len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
             is_simple = True
+
+        system_prompt = await self.generate_system_prompt(db)
+        messages = [{"role": "system", "content": system_prompt}]
+
+        history_count = 0
+        if conversation is not None:
+            query = select(Message).where(
+                Message.conversation_id == conversation.id,
+                Message.business_id == uuid.UUID(self.business_id)
+            )
+            if user_msg_id:
+                query = query.where(Message.id != user_msg_id)
             
-        # 3. Semantic Caching for generic small talk
+            msg_res = await db.execute(query.order_by(Message.created_at.desc()).limit(10))
+            for m in msg_res.scalars().all()[::-1]:
+                history_count += 1
+                messages.append({"role": "user" if m.sender_type == "user" else "assistant", "content": m.content})
+
+        # 3. Safe Semantic Caching for generic small talk (ONLY IF NO HISTORY)
         cache_key = None
-        if not self.funnel_state and is_simple and not media_b64:
+        if not self.funnel_state and is_simple and not media_b64 and history_count == 0:
             h = hashlib.md5(f"{self.business_id}:{lower_msg}".encode()).hexdigest()
             cache_key = f"ai_cache:{h}"
             try:
@@ -104,21 +121,6 @@ class AIEngineService:
                     }
             except Exception as e:
                 logger.error(f"Redis cache read error: {e}")
-
-        system_prompt = await self.generate_system_prompt(db)
-        messages = [{"role": "system", "content": system_prompt}]
-
-        if conversation is not None:
-            query = select(Message).where(
-                Message.conversation_id == conversation.id,
-                Message.business_id == uuid.UUID(self.business_id)
-            )
-            if user_msg_id:
-                query = query.where(Message.id != user_msg_id)
-            
-            msg_res = await db.execute(query.order_by(Message.created_at.desc()).limit(10))
-            for m in msg_res.scalars().all()[::-1]:
-                messages.append({"role": "user" if m.sender_type == "user" else "assistant", "content": m.content})
 
         user_content = user_message
         
