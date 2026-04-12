@@ -126,7 +126,23 @@ async def process_chat_core(
         db.add(conversation)
         await db.flush()
 
+    # ── 3. Intercept Reset Commands ─────────────────────────────
+    if content.strip().lower() in ["/start", "reset", "/reset", "تصفير"]:
+        if conversation:
+            from sqlalchemy import delete
+            await db.execute(delete(Message).where(Message.conversation_id == conversation.id))
+            
+            from app.services.funnel_state import FunnelStateService
+            await FunnelStateService.clear_state(str(conversation.id))
+            
+            conversation.status = "bot"
+            db.add(conversation)
+            await db.flush()
+        
+        return "🧹 تم تصفير المحادثة والذاكرة بنجاح! / Hafıza ve sohbet sıfırlandı!\n\nكيف يمكنني مساعدتك؟ / Size nasıl yardımcı olabilirim?", "none", str(uuid.uuid4()), str(conversation.id), []
+
     user_msg = Message(
+
         business_id=business_id,
         conversation_id=conversation.id,
         sender_type="user",
