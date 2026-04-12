@@ -7,13 +7,14 @@ class AIRouter:
 
     @staticmethod
     async def generate(db, messages: list, force_model: str = None, vision: bool = False, force_json: bool = True):
-        provider = force_model or await SettingsService.get(db, "ai_provider")
-        
-        openai_model = "gpt-4o" if vision else "gpt-4o-mini"
+        provider = await SettingsService.get(db, "ai_provider")
+        if not provider:
+            provider = "openai"
+            
+        openai_model = force_model if (force_model and force_model.startswith("gpt")) else ("gpt-4o" if vision else "gpt-4o-mini")
         openai_fallback = "gpt-4o-mini"
         
-        # User specified gemini-3.1-pro-high, we use standard gemini-1.5-pro or gemini-pro as primary
-        gemini_model = "gemini-1.5-pro" if vision else "gemini-pro"
+        gemini_model = force_model if (force_model and force_model.startswith("gemini")) else ("gemini-1.5-pro" if vision else "gemini-pro")
         gemini_fallback = "gemini-1.5-flash"
 
         for attempt in range(2):

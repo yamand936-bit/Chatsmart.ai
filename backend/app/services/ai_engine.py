@@ -63,8 +63,47 @@ class AIEngineService:
             funnel_state=self.funnel_state
         )
 
+    def validate_input(self, text: str) -> bool:
+        if not text: return True
+        forbidden_phrases = ["ignore previous instructions", "system prompt", "you are no longer", "forget all instructions", "override instructions", "ignore all rules", "تجاهل التعليمات", "تجاهل الأوامر"]
+        lower_text = str(text).lower()
+        return not any(phrase in lower_text for phrase in forbidden_phrases)
+
     async def get_response(self, db, user_message: str, conversation=None, media_b64: str = None, user_msg_id=None) -> dict:
         from app.services.ai_router import AIRouter
+        import hashlib
+        from app.core.redis_client import redis_client
+
+        # 1. Prompt Injection Defense
+        if not self.validate_input(user_message):
+            logger.warning(f"Prompt injection detected and blocked for business: {self.business_id}")
+            return {
+                "ai_output": '{"response": "أرجو منك البقاء في سياق خدماتنا.", "intent": "none", "data": {}}',
+                "provider": "security_guard",
+                "model": "rule_based"
+            }
+            
+        # 2. Complexity Routing Heuristics
+        is_simple = False
+        lower_msg = str(user_message).strip().lower()
+        if len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
+            is_simple = True
+            
+        # 3. Semantic Caching for generic small talk
+        cache_key = None
+        if not self.funnel_state and is_simple and not media_b64:
+            h = hashlib.md5(f"{self.business_id}:{lower_msg}".encode()).hexdigest()
+            cache_key = f"ai_cache:{h}"
+            try:
+                cached_res = await redis_client.get(cache_key)
+                if cached_res:
+                    return {
+                        "ai_output": cached_res,
+                        "provider": "redis_cache",
+                        "model": "semantic_hit"
+                    }
+            except Exception as e:
+                logger.error(f"Redis cache read error: {e}")
 
         system_prompt = await self.generate_system_prompt(db)
         messages = [{"role": "system", "content": system_prompt}]
@@ -92,14 +131,24 @@ class AIEngineService:
             
         messages.append({"role": "user", "content": user_content})
 
+        # Apply Model Downgrade for Cost Saving
+        target_override = "gpt-4o-mini" if is_simple else None
+
         try:
-            result = await AIRouter.generate(db, messages, vision=bool(media_b64))
+            result = await AIRouter.generate(db, messages, force_model=target_override, vision=bool(media_b64))
             cleaned_text = result["text"].strip()
             
             s = cleaned_text.find('{')
             e = cleaned_text.rfind('}')
             if s != -1 and e != -1:
                 cleaned_text = cleaned_text[s:e+1]
+
+            # Write to cache if it was marked simple
+            if cache_key and result.get("provider") != "redis_cache":
+                try:
+                    await redis_client.setex(cache_key, 7200, cleaned_text) # Cache for 2 hours
+                except Exception as e:
+                    logger.error(f"Redis cache write error: {e}")
 
             return {
                 "ai_output": cleaned_text,
