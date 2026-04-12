@@ -86,7 +86,7 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
                 """
                 
                 ai_req = [{"role": "user", "content": prompt}]
-                result = await AIRouter.generate(session, ai_req)
+                result = await AIRouter.generate(session, ai_req, force_json=False)
                 personalized_message = result["text"].strip()
                 
                 camp_msg = Message(

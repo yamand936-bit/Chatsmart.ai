@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 class AIRouter:
 
     @staticmethod
-    async def generate(db, messages: list, force_model: str = None, vision: bool = False):
+    async def generate(db, messages: list, force_model: str = None, vision: bool = False, force_json: bool = True):
         provider = force_model or await SettingsService.get(db, "ai_provider")
         
         openai_model = "gpt-4o" if vision else "gpt-4o-mini"
@@ -20,12 +20,12 @@ class AIRouter:
             try:
                 if provider == "openai":
                     from app.services.openai_service import OpenAIService
-                    text = await OpenAIService.generate(messages, model=openai_model)
+                    text = await OpenAIService.generate(messages, model=openai_model, force_json=force_json)
                     return {"text": text, "provider": provider, "model": openai_model}
 
                 elif provider == "gemini":
                     from app.services.gemini_service import GeminiService
-                    text = await GeminiService.generate(messages, model=gemini_model)
+                    text = await GeminiService.generate(messages, model=gemini_model, force_json=force_json)
                     return {"text": text, "provider": provider, "model": gemini_model}
 
                 elif provider == "custom":
@@ -46,11 +46,11 @@ class AIRouter:
                         try:
                             if provider == "gemini":
                                 from app.services.gemini_service import GeminiService
-                                text = await GeminiService.generate(messages, model=gemini_fallback)
+                                text = await GeminiService.generate(messages, model=gemini_fallback, force_json=force_json)
                                 return {"text": text, "provider": provider, "model": gemini_fallback}
                             elif provider == "openai":
                                 from app.services.openai_service import OpenAIService
-                                text = await OpenAIService.generate(messages, model=openai_fallback)
+                                text = await OpenAIService.generate(messages, model=openai_fallback, force_json=force_json)
                                 return {"text": text, "provider": provider, "model": openai_fallback}
                         except Exception as inner_e:
                             logger.error(f"Fallback model also failed: {inner_e}")
@@ -60,11 +60,11 @@ class AIRouter:
                             try:
                                 if cross_provider == "gemini":
                                     from app.services.gemini_service import GeminiService
-                                    text = await GeminiService.generate(messages, model=gemini_fallback)
+                                    text = await GeminiService.generate(messages, model=gemini_fallback, force_json=force_json)
                                     return {"text": text, "provider": "gemini", "model": gemini_fallback}
                                 else:
                                     from app.services.openai_service import OpenAIService
-                                    text = await OpenAIService.generate(messages, model=openai_fallback)
+                                    text = await OpenAIService.generate(messages, model=openai_fallback, force_json=force_json)
                                     return {"text": text, "provider": "openai", "model": openai_fallback}
                             except Exception as cross_err:
                                 logger.error(f"Cross-provider failover also failed: {cross_err}")
@@ -77,7 +77,7 @@ class AIRouter:
         logger.warning(f"Unrecognised or fully failed provider '{provider}'. Absolute Fallback to OpenAI gpt-4o-mini.")
         try:
             from app.services.openai_service import OpenAIService
-            text = await OpenAIService.generate(messages, model="gpt-4o-mini")
+            text = await OpenAIService.generate(messages, model="gpt-4o-mini", force_json=force_json)
             return {"text": text, "provider": "openai", "model": "gpt-4o-mini"}
         except Exception as crash_err:
             logger.error(f"Absolute Fallback crashed: {crash_err}")

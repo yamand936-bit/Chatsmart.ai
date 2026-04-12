@@ -5,7 +5,7 @@ from app.core.config import settings
 class GeminiService:
 
     @staticmethod
-    async def generate(messages: list, model: str = "gemini-1.5-pro"):
+    async def generate(messages: list, model: str = "gemini-1.5-pro", force_json: bool = True):
 
         if not settings.GEMINI_API_KEY:
             raise Exception("Gemini API key missing")
@@ -27,7 +27,9 @@ class GeminiService:
             else:
                 parts.append(f"[USER]\n{content}")
 
-        parts.append("\nIMPORTANT: Return ONLY valid JSON.")
+        if force_json:
+            parts.append("\nIMPORTANT: Return ONLY valid JSON.")
+        
         prompt = "\n\n".join(parts)
 
         loop = asyncio.get_event_loop()

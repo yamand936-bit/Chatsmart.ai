@@ -410,12 +410,10 @@ async def process_chat_core(
                     intent_value = "error"
 
         elif ai_intent.intent == "handoff_human":
-            conversation.status = "human"
-            db.add(conversation)
             import asyncio
-            msg_alert = f"🚨 Human Handoff Requested!\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nPlatform: {customer.platform}\n\nPlease check your Inbox in the CRM."
+            msg_alert = f"🚨 طلب مساعدة وتواصل مع الإدارة!\nالعميل: {customer.name or 'غير معروف'} ({customer.phone or 'بدون رقم'})\nالمنصة: {customer.platform}\n\nيرجى الدخول وتفقد الرسائل أو متابعة الدردشة مباشرة!"
             asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert))
-            # ai_msg_content and intent_value stay as the AI set them.
+            # ai_msg_content and intent_value stay as the AI set them. The bot will continue interacting.
 
         elif ai_intent.intent == "technical_support":
             support_phone = await SettingsService.get(db, "support_phone")
