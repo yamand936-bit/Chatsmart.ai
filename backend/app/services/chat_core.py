@@ -285,7 +285,7 @@ async def process_chat_core(
             db.add(conversation)
 
         # ── 7. Intent-specific processing ─────────────────────────────────────
-        elif ai_intent.intent in ["create_order", "suggest_product", "none"]:
+        if ai_intent.intent in ["create_order", "suggest_product", "none"]:
             product_id_str = ai_intent.data.get("product_id") if ai_intent.data else None
 
             # Fallback for hidden JSON blocks embedded in response text by LLM
@@ -325,16 +325,20 @@ async def process_chat_core(
                                     "quantity": 1,
                                 },
                             )
-                            # C-2 Fix: Do not save new_order here. Wait for explicit user confirmation via card button.
-                        
-                        smart_cards.append({
-                            "product_id": str(matched_product.id),
-                            "product_name": matched_product.name,
-                            "price": str(matched_product.price),
-                            "image_url": matched_product.image_url or "https://via.placeholder.com/150"
-                        })
-                        
-                        # ai_msg_content and intent_value stay as the AI set them.
+                            db.add(new_order)
+                            
+                            # Alert the merchant about the new order immediately
+                            import asyncio
+                            from app.services.notification_service import NotificationService
+                            msg_alert = f"🛒 New Order Created!\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nProduct: {matched_product.name}\nPrice: {matched_product.price}"
+                            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "ORDER", msg_alert))
+                        elif ai_intent.intent == "suggest_product":
+                            smart_cards.append({
+                                "product_id": str(matched_product.id),
+                                "product_name": matched_product.name,
+                                "price": str(matched_product.price),
+                                "image_url": matched_product.image_url or "https://via.placeholder.com/150"
+                            })
                     else:
                         if not ai_msg_content.strip():
                             ai_msg_content = "عذراً، لم أتمكن من العثور على تفاصيل هذا المنتج." if detected_lang in ["ar", "Arabic"] else ("Özür dilerim, bu ürünü bulamadım." if detected_lang in ["tr", "Turkish"] else "I could not find that product in our catalog.")
