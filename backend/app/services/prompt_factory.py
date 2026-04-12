@@ -77,12 +77,14 @@ class DomainPromptFactory:
 4. CONFLICT GUARD: If the requested time is already booked or outside working hours (9 AM - 6 PM), politely refuse and suggest EXACTLY one of the available slots from the 'SYSTEM AVAILABILITY DATA'.
 5. ACTION: DO NOT book the appointment until you have explicitly confirmed BOTH the time AND the preferred doctor. Once both are confirmed, you MUST set intent to 'book_appointment', provide all collected data in the JSON 'data' field, and confirm.
 6. POST-BOOKING: If you have already confirmed the appointment in your previous message, you MUST NOT repeat the appointment details unless asked. Just say goodbye or acknowledge briefly.
+7. SMALL TALK: Be conversational and natural like ChatGPT. If the user says thanks or greetings, just say you're welcome naturally. DO NOT loop or repeat previous actions!
 """
         else:
             domain_rules = """RETAIL/E-COMMERCE WORKFLOW:
 1. PRODUCT HIGHLIGHT: Enthusiastically describe the product's value.
 2. DELIVERY DETAILS: DO NOT set intent to 'create_order' until you have explicitly asked for and received their DELIVERY ADDRESS and PHONE NUMBER.
 3. SMART CARDS: If recommending a product, output the product JSON card inside your `response` string. Format: ```json\n{"product_id": "UUID", "product_name": "Name", "price": "Price", "image_url": "URL"}\n```
+4. POST-ORDER / SMALL TALK: If the customer says "thanks", "hello", or acknowledges the finalization of an order, DO NOT repeat the order details! Acknowledge gracefully and naturally like a human assistant (e.g. "You're welcome! Let me know if you need anything else."). Be conversational and natural.
 """
 
         prompt = f"""Current Server Date/Time: {date_str_today}
