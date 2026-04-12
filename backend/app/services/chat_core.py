@@ -417,7 +417,17 @@ async def process_chat_core(
 
         elif ai_intent.intent == "technical_support":
             support_phone = await SettingsService.get(db, "support_phone")
-            ai_msg_content = f"⚠️ Support Required\n\n📞 {support_phone}"
+            
+            if support_phone and support_phone not in ai_msg_content:
+                support_prefix = "\n\n⚠️ "
+                if detected_lang in ["tr", "Turkish"]:
+                    support_prefix += f"Destek Hattı: {support_phone}"
+                elif detected_lang in ["ar", "Arabic"]:
+                    support_prefix += f"رقم الدعم الفني: {support_phone}"
+                else:
+                    support_prefix += f"Support Line: {support_phone}"
+                ai_msg_content = f"{ai_msg_content}{support_prefix}"
+                
             intent_value = "technical_support"
             
             msg = f"Technical Support Request:\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nPlatform: {customer.platform}\n\nPlease check your recent chats to assist them."
