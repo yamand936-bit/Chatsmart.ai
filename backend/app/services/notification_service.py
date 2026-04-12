@@ -31,8 +31,8 @@ class NotificationService:
             )
             
         if promises:
-            # Run in background without blocking the main event loop
-            asyncio.gather(*promises, return_exceptions=True)
+            # AWAIT the gather to actually execute the promises in the event loop!
+            await asyncio.gather(*promises, return_exceptions=True)
 
     @staticmethod
     async def dispatch_admin_error(error_context: str, error_message: str):
