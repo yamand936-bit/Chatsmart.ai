@@ -18,17 +18,16 @@ class NotificationService:
         
         custom_bot_token = None
         if db is not None:
-            from app.models.domain import Integration
+            from app.models.business import BusinessFeature
             from sqlalchemy.future import select
             try:
-                res = await db.execute(select(Integration).where(
-                    Integration.business_id == business.id,
-                    Integration.platform == "telegram"
+                res = await db.execute(select(BusinessFeature).where(
+                    BusinessFeature.business_id == business.id,
+                    BusinessFeature.feature_type == "telegram"
                 ))
                 tg_int = res.scalar_one_or_none()
                 if tg_int and tg_int.is_active:
-                    import json
-                    config = json.loads(tg_int.config_json)
+                    config = tg_int.config or {}
                     custom_bot_token = config.get("bot_token")
             except Exception as e:
                 logger.error(f"Failed to fetch custom bot token for alerts: {e}")
