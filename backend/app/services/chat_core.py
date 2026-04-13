@@ -278,6 +278,9 @@ async def process_chat_core(
                 "private_dm": getattr(ai_intent, 'private_dm', '')
             })
             
+        if ai_msg_content == "EOF":
+            ai_msg_content = ""
+            
         intent_value = ai_intent.intent
 
         if getattr(ai_intent, 'lead_priority', None) and ai_intent.lead_priority != "None":

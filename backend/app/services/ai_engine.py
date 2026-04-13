@@ -86,7 +86,7 @@ class AIEngineService:
         # 2. Complexity Routing Heuristics
         is_simple = False
         lower_msg = str(user_message).strip().lower()
-        if len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
+        if not self.funnel_state and len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
             is_simple = True
 
         system_prompt = await self.generate_system_prompt(db)
