@@ -333,8 +333,14 @@ async def process_chat_core(
                             # Alert the merchant about the new order immediately
                             import asyncio
                             from app.services.notification_service import NotificationService
+                            from app.models.business import BusinessFeature
+                            tg_feat = await db.execute(select(BusinessFeature).where(
+                                BusinessFeature.business_id == business_id, BusinessFeature.feature_type == "telegram"))
+                            tg_int = tg_feat.scalar_one_or_none()
+                            custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
+
                             msg_alert = f"🛒 New Order Created!\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nProduct: {matched_product.name}\nPrice: {matched_product.price}"
-                            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "ORDER", msg_alert, db=db))
+                            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "ORDER", msg_alert, custom_bot_token=custom_token))
                         elif ai_intent.intent == "suggest_product":
                             smart_cards.append({
                                 "product_id": str(matched_product.id),
@@ -420,7 +426,12 @@ async def process_chat_core(
                                 staff_line = f"\nStaff: {staff_name}" if staff_name else ""
                                 msg = f"New Appointment Booked:\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nService: {matched_product.name}{staff_line}\nTime: {start_dt.strftime('%Y-%m-%d %H:%M')}\nPlatform: {customer.platform}"
                                 import asyncio
-                                asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "APPOINTMENT", msg, db=db))
+                                from app.models.business import BusinessFeature
+                                tg_feat = await db.execute(select(BusinessFeature).where(
+                                    BusinessFeature.business_id == business_id, BusinessFeature.feature_type == "telegram"))
+                                tg_int = tg_feat.scalar_one_or_none()
+                                custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
+                                asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "APPOINTMENT", msg, custom_bot_token=custom_token))
                         else:
                             ai_msg_content = "عذراً، لم أتمكن من فهم صيغة التاريخ والوقت." if detected_lang in ["ar", "Arabic"] else ("Tarih ve saat formatını anlayamadım." if detected_lang in ["tr", "Turkish"] else "I could not understand the date and time format you provided.")
                             intent_value = "error"
@@ -434,8 +445,14 @@ async def process_chat_core(
 
         elif ai_intent.intent == "handoff_human":
             import asyncio
+            from app.models.business import BusinessFeature
+            tg_feat = await db.execute(select(BusinessFeature).where(
+                BusinessFeature.business_id == business_id, BusinessFeature.feature_type == "telegram"))
+            tg_int = tg_feat.scalar_one_or_none()
+            custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
+            
             msg_alert = f"🚨 طلب مساعدة وتواصل مع الإدارة!\nالعميل: {customer.name or 'غير معروف'} ({customer.phone or 'بدون رقم'})\nالمنصة: {customer.platform}\n\nيرجى الدخول وتفقد الرسائل أو متابعة الدردشة مباشرة!"
-            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert, db=db))
+            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert, custom_bot_token=custom_token))
             # ai_msg_content and intent_value stay as the AI set them. The bot will continue interacting.
 
         elif ai_intent.intent == "technical_support":

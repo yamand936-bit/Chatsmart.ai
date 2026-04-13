@@ -10,27 +10,11 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     @staticmethod
-    async def dispatch_merchant_alert(business, event_type: str, message: str, db=None):
+    async def dispatch_merchant_alert(business, event_type: str, message: str, custom_bot_token: str = None):
         """
         Dispatches an alert to the merchant via Telegram and/or Email if configured.
         """
         promises = []
-        
-        custom_bot_token = None
-        if db is not None:
-            from app.models.business import BusinessFeature
-            from sqlalchemy.future import select
-            try:
-                res = await db.execute(select(BusinessFeature).where(
-                    BusinessFeature.business_id == business.id,
-                    BusinessFeature.feature_type == "telegram"
-                ))
-                tg_int = res.scalar_one_or_none()
-                if tg_int and tg_int.is_active:
-                    config = tg_int.config or {}
-                    custom_bot_token = config.get("bot_token")
-            except Exception as e:
-                logger.error(f"Failed to fetch custom bot token for alerts: {e}")
 
         if business.notification_telegram:
             promises.append(
