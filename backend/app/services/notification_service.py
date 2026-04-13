@@ -10,15 +10,32 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     @staticmethod
-    async def dispatch_merchant_alert(business, event_type: str, message: str):
+    async def dispatch_merchant_alert(business, event_type: str, message: str, db=None):
         """
         Dispatches an alert to the merchant via Telegram and/or Email if configured.
         """
         promises = []
         
+        custom_bot_token = None
+        if db is not None:
+            from app.models.domain import Integration
+            from sqlalchemy.future import select
+            try:
+                res = await db.execute(select(Integration).where(
+                    Integration.business_id == business.id,
+                    Integration.platform == "telegram"
+                ))
+                tg_int = res.scalar_one_or_none()
+                if tg_int and tg_int.is_active:
+                    import json
+                    config = json.loads(tg_int.config_json)
+                    custom_bot_token = config.get("bot_token")
+            except Exception as e:
+                logger.error(f"Failed to fetch custom bot token for alerts: {e}")
+
         if business.notification_telegram:
             promises.append(
-                NotificationService.send_telegram(business.notification_telegram, f"🚨 [{event_type}] {business.name}\n\n{message}")
+                NotificationService.send_telegram(business.notification_telegram, f"🚨 [{event_type}] {business.name}\n\n{message}", bot_token=custom_bot_token)
             )
             
         if business.notification_email:
@@ -50,12 +67,13 @@ class NotificationService:
         asyncio.create_task(NotificationService.send_telegram(settings.ADMIN_TELEGRAM_CHAT_ID, text, parse_mode="HTML"))
             
     @staticmethod
-    async def send_telegram(chat_id: str, text: str, parse_mode: str = None):
-        if not settings.TELEGRAM_BOT_TOKEN:
-            logger.warning("Telegram Bot Token is not set in environment. Skipping Telegram alert.")
+    async def send_telegram(chat_id: str, text: str, parse_mode: str = None, bot_token: str = None):
+        token = bot_token or settings.TELEGRAM_BOT_TOKEN
+        if not token:
+            logger.warning("Telegram Bot Token is not set globally or locally. Skipping Telegram alert.")
             return
 
-        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {"chat_id": chat_id, "text": text}
         if parse_mode:
             payload["parse_mode"] = parse_mode
