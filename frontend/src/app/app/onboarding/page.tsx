@@ -27,7 +27,7 @@ export default function OnboardingWizard() {
   const handleSaveStep1 = async () => {
     if (!bName) return toast.error('أدخل اسم المتجر');
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/settings`, {
+      await axios.put(`/api/merchant/settings`, {
           name: bName, business_type: bType, language: bLang
       }, { withCredentials: true });
       toast.success('تم الحفظ');
@@ -38,7 +38,7 @@ export default function OnboardingWizard() {
   const handleSaveStep2 = async () => {
       try {
           if (tgToken) {
-              await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/features/telegram`, {
+              await axios.post(`/api/merchant/features/telegram`, {
                   bot_token: tgToken, webhook_secret: "onboarding_default", action: "save"
               }, { withCredentials: true });
           }
@@ -57,7 +57,7 @@ export default function OnboardingWizard() {
   
   const handleSaveStep3 = async () => {
       try {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/products`, {
+        await axios.post(`/api/merchant/products`, {
             name: pName, price: parseFloat(pPrice), item_type: bType === 'retail' ? 'product' : 'service'
         }, { withCredentials: true });
         toast.success('تمت الإضافة');
@@ -67,7 +67,7 @@ export default function OnboardingWizard() {
 
   const completeSetup = async () => {
       try {
-        await axios.put(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/settings`, {
+        await axios.put(`/api/merchant/settings`, {
           setup_complete: true
         }, { withCredentials: true });
         toast.success('مرحباً بك في لوحة التحكم!');

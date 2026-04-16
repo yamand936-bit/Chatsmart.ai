@@ -21,7 +21,7 @@ export default function MerchantDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/analytics?period=${period}`, { withCredentials: true })
+    axios.get(`/api/merchant/analytics?period=${period}`, { withCredentials: true })
     .then((res) => {
        if (res.data.status === 'ok') {
           setData(res.data);
@@ -35,7 +35,7 @@ export default function MerchantDashboard() {
        setLoading(false);
     });
 
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/merchant/summary?period=${period}`, { withCredentials: true })
+    axios.get(`/api/analytics/merchant/summary?period=${period}`, { withCredentials: true })
     .then(res => setAdvData(res.data.data ? res.data.data : res.data))
     .catch(console.error);
   }, [period]);

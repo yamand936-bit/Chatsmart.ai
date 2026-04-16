@@ -14,7 +14,7 @@ export default function KanbanPage() {
 
   const fetchBoard = async () => {
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/kanban`, { withCredentials: true });
+      const res = await axios.get(`/api/merchant/kanban`, { withCredentials: true });
       if (res.data.status === 'ok') {
         setBoard(res.data.data);
       }
@@ -57,7 +57,7 @@ export default function KanbanPage() {
     });
 
     try {
-        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/kanban/${id}`, 
+        await axios.put(`/api/merchant/kanban/${id}`, 
             { new_priority: targetCol }, 
             { withCredentials: true }
         );

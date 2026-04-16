@@ -9,7 +9,7 @@ export default function OrdersPage() {
   const tCommon = useTranslations('common');
 
   useEffect(() => {
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/orders`, { withCredentials: true })
+    axios.get(`/api/merchant/orders`, { withCredentials: true })
       .then(res => setOrders(res.data.data || []))
       .catch(console.error);
   }, []);

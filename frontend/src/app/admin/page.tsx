@@ -60,7 +60,7 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const bizRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses`, { withCredentials: true });
+      const bizRes = await axios.get(`/api/admin/businesses`, { withCredentials: true });
       if (bizRes.data && bizRes.data.data) {
         setBusinesses(bizRes.data.data);
       } else {
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const logsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs`, { withCredentials: true });
+      const logsRes = await axios.get(`/api/admin/logs`, { withCredentials: true });
       if (logsRes.data && logsRes.data.data) {
         setLogs(logsRes.data.data);
       }
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const metRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/metrics`, { withCredentials: true });
+      const metRes = await axios.get(`/api/admin/metrics`, { withCredentials: true });
       if (metRes.data) {
         setMetrics(metRes.data);
       }
@@ -89,7 +89,7 @@ export default function AdminDashboard() {
     }
     
     try {
-       const healthRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/health`, { withCredentials: true });
+       const healthRes = await axios.get(`/api/admin/health`, { withCredentials: true });
        if (healthRes.data?.data) {
           setSystemHealth(healthRes.data.data);
        }
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      const settingsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/system/settings`, { withCredentials: true });
+      const settingsRes = await axios.get(`/api/system/settings`, { withCredentials: true });
       if (settingsRes.data && settingsRes.data.data) {
         setSystemSettings(settingsRes.data.data);
       } else if (settingsRes.data) {
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
   const handleSaveSystemSettings = async () => {
     setSavingSettings(true);
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/system/settings`, { settings: systemSettings }, { withCredentials: true });
+      await axios.post(`/api/system/settings`, { settings: systemSettings }, { withCredentials: true });
       alert(tSystem('saved') || "Saved successfully");
     } catch (e) {
       console.error(e);
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
     
     try {
       setCreating(true);
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/subscribe`, {
+      const res = await axios.post(`/api/admin/subscribe`, {
         business_id: selectedPlanBusinessId,
         plan: plan
       }, { withCredentials: true });
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
 
       if (editingBusinessId) {
         // Update Business (PUT)
-        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${editingBusinessId}`, {
+        await axios.put(`/api/admin/businesses/${editingBusinessId}`, {
           name,
           business_type: businessType
         }, { withCredentials: true });
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
         setCreateMsg({ type: 'success', text: tAdmin('table.update_success') || tCommon('success') });
       } else {
         // Create Business (POST)
-        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses`, {
+        const res = await axios.post(`/api/admin/businesses`, {
           name,
           owner_email: ownerEmail,
           owner_password: ownerPassword,
@@ -213,12 +213,12 @@ export default function AdminDashboard() {
 
       // Configure Telegram
       if (enTg) {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${targetBusinessId}/features/telegram`, {
+        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/telegram`, {
           is_active: true,
           config: { bot_token: tgToken, webhook_secret: tgWebhook }
         }, { withCredentials: true });
       } else if (editingBusinessId) {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${targetBusinessId}/features/telegram`, {
+        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/telegram`, {
           is_active: false,
           config: {}
         }, { withCredentials: true });
@@ -226,12 +226,12 @@ export default function AdminDashboard() {
 
       // Configure WhatsApp
       if (enWa) {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
+        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
           is_active: true,
           config: { phone_number_id: waPhone, access_token: waToken, app_secret: waAppSecret }
         }, { withCredentials: true });
       } else if (editingBusinessId) {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
+        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
           is_active: false,
           config: {}
         }, { withCredentials: true });
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
     console.log('handleEdit function started for ID:', id);
     setCreateMsg({ type: '', text: '' });
     try {
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${id}`;
+      const url = `/api/admin/businesses/${id}`;
       console.log('Executing GET request to:', url);
       const res = await axios.get(url, { withCredentials: true });
       console.log('GET /businesses/{id} Response:', res.data);
@@ -305,7 +305,7 @@ export default function AdminDashboard() {
     try {
       console.log('Executing PATCH request to status endpoint');
       setBusinesses(prev => prev.map(b => b.id === id ? { ...b, status: isInactive ? 'active' : 'inactive' } : b)); // Optimistic UI
-      const res = await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/businesses/${id}/status`, {
+      const res = await axios.patch(`/api/admin/businesses/${id}/status`, {
         status: isInactive ? 'active' : 'inactive'
       }, { withCredentials: true });
       console.log('PATCH response:', res.data);
@@ -333,7 +333,7 @@ export default function AdminDashboard() {
     newWindow.document.write('<div style="font-family:sans-serif;text-align:center;margin-top:20%;"><h2>Redirecting securely to Merchant Dashboard...</h2></div>');
     
     try {
-       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/impersonate/${businessId}`, {}, {withCredentials: true});
+       const res = await axios.post(`/api/admin/impersonate/${businessId}`, {}, {withCredentials: true});
        const token = res.data.token;
        newWindow.location.href = `/app?impersonate_token=${token}`;
     } catch(err) {

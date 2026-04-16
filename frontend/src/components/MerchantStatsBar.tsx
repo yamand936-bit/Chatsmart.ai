@@ -14,7 +14,7 @@ export default function MerchantStatsBar() {
 
   useEffect(() => {
     // Fetch stats
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/stats`, {
+    axios.get(`/api/merchant/stats`, {
       withCredentials: true
     })
     .then(res => {
@@ -26,7 +26,7 @@ export default function MerchantStatsBar() {
 
     // Refresh every 30 seconds
     const interval = setInterval(() => {
-      axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/stats`, { withCredentials: true })
+      axios.get(`/api/merchant/stats`, { withCredentials: true })
         .then(res => { if(res.data.status === 'ok') setStats(res.data); })
         .catch(console.error);
     }, 30000);

@@ -1,9 +1,7 @@
 import asyncio
-import secrets
-import string
-import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import update
 
 from app.db.session import async_session_maker
 from app.models.user import User
@@ -12,27 +10,28 @@ from app.core.security import get_password_hash
 
 async def seed_admin():
     async with async_session_maker() as session:
+        email = "admin@chatsmart.ai"
+        password = "admin"
+        
         # Check if any admin exists
-        stmt = select(User).where(User.role == "admin")
+        stmt = select(User).where(User.role == "admin", User.email == email)
         result = await session.execute(stmt)
         existing_admin = result.scalars().first()
         
         if existing_admin:
-            print("SEEDED:")
-            print("Status=Admin already exists. Safely skipping.")
+            print("Admin already exists. Enforcing default testing password...")
+            existing_admin.hashed_password = get_password_hash(password)
+            await session.commit()
+            print(f"email={email}")
+            print(f"password={password}")
             return
 
-        # Generate credentials
-        email = "admin@chatsmart.ai"
-        
-        # Generate strong random password
-        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-        password = ''.join(secrets.choice(alphabet) for i in range(16))
+        print("Creating default admin account...")
         
         # 1. Create Business
         business = Business(name="ChatSmart AI Core")
         session.add(business)
-        await session.flush()  # to get the business.id generated securely
+        await session.flush()  # to get the business.id
         
         # 2. Create Admin User
         admin_user = User(
@@ -49,7 +48,6 @@ async def seed_admin():
         print(f"email={email}")
         print(f"password={password}")
         print(f"business_id={business.id}")
-        print("api_key=N/A (Schema uses JWT)")
 
 if __name__ == "__main__":
     asyncio.run(seed_admin())

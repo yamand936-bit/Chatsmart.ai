@@ -15,7 +15,7 @@ export default function AdminAlertsPoller() {
 
     const fetchAlerts = async () => {
         try {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/admin/alerts`, { withCredentials: true });
+            const res = await axios.get(`/api/admin/alerts`, { withCredentials: true });
             if (res.data && res.data.data) {
                 const alerts: any[] = res.data.data;
                 alerts.forEach(a => {

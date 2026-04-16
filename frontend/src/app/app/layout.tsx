@@ -57,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Fetch business type for conditional routing
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/settings`, { withCredentials: true })
+    axios.get(`/api/merchant/settings`, { withCredentials: true })
       .then(res => {
         if (res.data?.data) {
           if (res.data.data.business_type) setBusinessType(res.data.data.business_type);

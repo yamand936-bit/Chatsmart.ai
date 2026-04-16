@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   
   logout: async () => {
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/logout`, {}, { withCredentials: true });
+      await axios.post(`/api/auth/logout`, {}, { withCredentials: true });
     } catch(err) {
       console.error("Logout failed", err);
     } finally {
@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchMe: async () => {
     try {
       axios.defaults.withCredentials = true;
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`, { withCredentials: true });
+      const res = await axios.get(`/api/auth/me`, { withCredentials: true });
       set({ user: res.data, isHydrated: true });
     } catch (err) {
       set({ user: null, isHydrated: true });
@@ -100,7 +100,7 @@ if (typeof window !== "undefined") {
 
             try {
               // Attempt to refresh token silently. Add _retry: true to bypass the interceptor on failure.
-              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {}, { withCredentials: true, _retry: true } as any);
+              await axios.post(`/api/auth/refresh`, {}, { withCredentials: true, _retry: true } as any);
               isRefreshing = false;
               onRefreshed();
               refreshSubscribers = [];

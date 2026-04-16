@@ -32,14 +32,14 @@ export default function ChatPage() {
   useEffect(() => {
     let es: EventSource;
     if (typeof window !== 'undefined') {
-        es = new EventSource(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/stream`, { withCredentials: true });
+        es = new EventSource(`/api/merchant/stream`, { withCredentials: true });
         es.onmessage = (e) => {
             try {
                 const payload = JSON.parse(e.data);
                 if (payload.type === 'new_message') {
                     if (selectedConversation === payload.conversation_id) {
                         // Refresh current chat
-                        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/messages`, { withCredentials: true })
+                        axios.get(`/api/merchant/conversations/${selectedConversation}/messages`, { withCredentials: true })
                          .then(res => setMessages(res.data.data || []));
                     } else {
                         useNotificationStore.getState().addNotification({
@@ -58,7 +58,7 @@ export default function ChatPage() {
   }, [selectedConversation]);
 
   useEffect(() => {
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products`, { withCredentials: true })
+    axios.get(`/api/merchant/products`, { withCredentials: true })
       .then(res => setProducts(res.data.data || [])).catch(console.error);
       
     fetchConversations();
@@ -66,7 +66,7 @@ export default function ChatPage() {
 
   const fetchConversations = () => {
      setLoadingConvos(true);
-     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations`, { withCredentials: true })
+     axios.get(`/api/merchant/conversations`, { withCredentials: true })
       .then(res => setConversations(res.data.data || []))
       .catch(console.error)
       .finally(() => setLoadingConvos(false));
@@ -75,7 +75,7 @@ export default function ChatPage() {
   const loadConversationMessages = (id: string) => {
      setSelectedConversation(id);
      setIsTyping(true);
-     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${id}/messages`, { withCredentials: true })
+     axios.get(`/api/merchant/conversations/${id}/messages`, { withCredentials: true })
       .then(res => {
           setMessages(res.data.data || []);
       })
@@ -104,7 +104,7 @@ export default function ChatPage() {
         const loadingToast = toast.loading(t('extracting'));
         try {
             const lastMessages = messages.slice(-5).map(m => m.role + ": " + m.text);
-            const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/extract-order`, { messages: lastMessages }, { withCredentials: true });
+            const res = await axios.post(`/api/merchant/extract-order`, { messages: lastMessages }, { withCredentials: true });
             
             if (res.data.status === "ok" && res.data.data) {
                 setOrderForm(prev => ({
@@ -132,7 +132,7 @@ export default function ChatPage() {
               if (p) finalTotal = p.price * orderForm.quantity;
           }
 
-          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/orders`, {
+          await axios.post(`/api/merchant/orders`, {
               ...orderForm, total_amount: finalTotal, customer_id: orderForm.customer_id || null
           }, { withCredentials: true });
           
@@ -160,7 +160,7 @@ export default function ChatPage() {
         setIsTyping(true);
 
         try {
-            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/reply`, 
+            await axios.post(`/api/merchant/conversations/${selectedConversation}/reply`, 
                 { message: textToSend }, 
                 { withCredentials: true }
             );
@@ -179,7 +179,7 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/message`, {
+      const res = await axios.post(`/api/chat/message`, {
         customer_platform: "web_simulator",
         external_id: "demo_user",
         content: textToSend
@@ -359,7 +359,7 @@ export default function ChatPage() {
                          toast.success(isBot ? 'You have taken over. AI paused.' : 'AI Resumed.');
                          
                          try {
-                           await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/${endpoint}`, {}, { withCredentials: true });
+                           await axios.post(`/api/merchant/conversations/${selectedConversation}/${endpoint}`, {}, { withCredentials: true });
                          } catch (e) {
                            toast.error('Error changing conversation status.');
                            // Revert optimistic update

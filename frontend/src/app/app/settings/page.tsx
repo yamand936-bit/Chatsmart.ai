@@ -35,11 +35,11 @@ export default function SettingsPage() {
     const limit = 10000; // Trial limit
     
     useEffect(() => {
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/stats`, { withCredentials: true })
+        axios.get(`/api/merchant/stats`, { withCredentials: true })
         .then(res => setStats(res.data))
         .catch(console.error);
         
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/settings`, { withCredentials: true })
+        axios.get(`/api/merchant/settings`, { withCredentials: true })
         .then(res => {
             const data = res.data.data;
             if (data.ai_tone) setTone(data.ai_tone);
@@ -66,7 +66,7 @@ export default function SettingsPage() {
         })
         .catch(console.error);
         
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, { withCredentials: true })
+        axios.get(`/api/merchant/flows`, { withCredentials: true })
         .then(res => setBotFlows(res.data.data || []))
         .catch(console.error);
     }, []);
@@ -74,7 +74,7 @@ export default function SettingsPage() {
     const saveSettings = async () => {
         setUpdating(true);
         try {
-            await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/settings`, { 
+            await axios.put(`/api/merchant/settings`, { 
                 knowledge_base: knowledgeBase,
                 bank_details: { bank_name: bankName, iban: iban },
                 primary_color: primaryColor,
@@ -85,7 +85,7 @@ export default function SettingsPage() {
             }, { withCredentials: true });
             
             // Apply tone here as well if they modified it (we've left old PUT /api/merchant/tone active but can unify)
-            await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/tone`, { tone: tone }, { withCredentials: true });
+            await axios.put(`/api/merchant/tone`, { tone: tone }, { withCredentials: true });
 
             document.documentElement.style.setProperty('--primary-color', primaryColor);
             toast.success("تم الحفظ بنجاح / Settings saved");
@@ -141,7 +141,7 @@ export default function SettingsPage() {
                                formData.append('file', file);
                                const toastId = toast.loading("Processing file with AI...");
                                try {
-                                    await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/knowledge`, formData, { withCredentials: true });
+                                    await axios.post(`/api/merchant/knowledge`, formData, { withCredentials: true });
                                     toast.success("File processed & learned successfully!", {id: toastId});
                                } catch (err) {
                                     toast.error("Error processing file", {id: toastId});
@@ -158,7 +158,7 @@ export default function SettingsPage() {
                          formData.append('text', knowledgeBase);
                          const toastId = toast.loading("Processing text with AI...");
                          try {
-                              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/knowledge`, formData, { withCredentials: true });
+                              await axios.post(`/api/merchant/knowledge`, formData, { withCredentials: true });
                               toast.success("Knowledge Base ingested!", {id: toastId});
                               setKnowledgeBase("");
                          } catch (err) {
@@ -303,13 +303,13 @@ export default function SettingsPage() {
                             <button onClick={async () => {
                                 try {
                                     if(editingFlow.id) {
-                                        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows/${editingFlow.id}`, editingFlow, { withCredentials: true });
+                                        await axios.put(`/api/merchant/flows/${editingFlow.id}`, editingFlow, { withCredentials: true });
                                     } else {
-                                        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, editingFlow, { withCredentials: true });
+                                        await axios.post(`/api/merchant/flows`, editingFlow, { withCredentials: true });
                                     }
                                     toast.success(t('saved'));
                                     setShowFlowForm(false);
-                                    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, { withCredentials: true }).then(res => setBotFlows(res.data.data));
+                                    axios.get(`/api/merchant/flows`, { withCredentials: true }).then(res => setBotFlows(res.data.data));
                                 } catch(e) { toast.error("Error saving flow"); }
                             }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition">
                                 {t('saveFlow')}
@@ -329,7 +329,7 @@ export default function SettingsPage() {
                                 <button onClick={() => { setEditingFlow(flow); setShowFlowForm(true); }} className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded text-sm border">{tCommon('edit')}</button>
                                 <button onClick={async () => {
                                     if(confirm(tCommon('delete_confirm'))) {
-                                        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows/${flow.id}`, { withCredentials: true });
+                                        await axios.delete(`/api/merchant/flows/${flow.id}`, { withCredentials: true });
                                         setBotFlows(botFlows.filter(f => f.id !== flow.id));
                                     }
                                 }} className="text-red-600 hover:bg-red-50 px-3 py-1 rounded text-sm border">{tCommon('delete')}</button>
@@ -366,7 +366,7 @@ export default function SettingsPage() {
                                 <button 
                                     onClick={async () => {
                                         try {
-                                            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/instagram/login`, { withCredentials: true });
+                                            const res = await axios.get(`/api/auth/instagram/login`, { withCredentials: true });
                                             window.open(res.data.url, '_blank', 'width=600,height=700');
                                         } catch (e) {
                                             toast.error("Failed to initialize Instagram connect");
@@ -403,7 +403,7 @@ export default function SettingsPage() {
                                 <button 
                                     onClick={async () => {
                                         try {
-                                            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/tiktok/login`, { withCredentials: true });
+                                            const res = await axios.get(`/api/auth/tiktok/login`, { withCredentials: true });
                                             window.open(res.data.url, '_blank', 'width=600,height=700');
                                         } catch (e) {
                                             toast.error("Failed to initialize TikTok connect");
@@ -443,7 +443,7 @@ export default function SettingsPage() {
                                      onClick={async () => {
                                           if (!telegramBotToken || !telegramWebhookSecret) return toast.error("Please fill both Token and Secret");
                                           try {
-                                              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/features/telegram`, {
+                                              const res = await axios.post(`/api/merchant/features/telegram`, {
                                                    bot_token: telegramBotToken,
                                                    webhook_secret: telegramWebhookSecret,
                                                    action: 'validate'
@@ -452,7 +452,7 @@ export default function SettingsPage() {
                                               if (res.data.status === 'success') {
                                                    toast.success(`Connected to: @${res.data.bot_username}`);
                                                    // Save it for real
-                                                   await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/features/telegram`, {
+                                                   await axios.post(`/api/merchant/features/telegram`, {
                                                         bot_token: telegramBotToken,
                                                         webhook_secret: telegramWebhookSecret,
                                                         action: 'save'

@@ -24,7 +24,7 @@ export default function LoginPage() {
       params.append('username', email);
       params.append('password', password);
 
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/login`, params, {
+      const res = await axios.post(`/api/auth/login`, params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         withCredentials: true
       });

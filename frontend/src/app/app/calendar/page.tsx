@@ -16,7 +16,7 @@ export default function CalendarPage() {
 
   const fetchEvents = async () => {
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments`, { withCredentials: true });
+      const res = await axios.get(`/api/merchant/appointments`, { withCredentials: true });
       if (res.data.status === 'ok') {
         setEvents(res.data.data);
       }
@@ -34,7 +34,7 @@ export default function CalendarPage() {
   const handleEventDrop = async (info: any) => {
     const { event } = info;
     try {
-      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments/${event.id}`, {
+      await axios.put(`/api/merchant/appointments/${event.id}`, {
         start_time: event.start.toISOString(),
         end_time: event.end ? event.end.toISOString() : event.start.toISOString(),
       }, { withCredentials: true });
@@ -55,8 +55,8 @@ export default function CalendarPage() {
       const loadingToast = toast.loading('...');
       
       try {
-          await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/settings`, { sheet_url: sheetUrl }, { withCredentials: true });
-          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments/sync`, { sheet_url: sheetUrl }, { withCredentials: true });
+          await axios.put(`/api/merchant/settings`, { sheet_url: sheetUrl }, { withCredentials: true });
+          await axios.post(`/api/merchant/appointments/sync`, { sheet_url: sheetUrl }, { withCredentials: true });
           await fetchEvents();
           toast.success(t('sync_success'), { id: loadingToast });
       } catch (err) {
@@ -77,7 +77,7 @@ export default function CalendarPage() {
       formData.append('file', file);
 
       try {
-          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments/upload`, formData, { 
+          await axios.post(`/api/merchant/appointments/upload`, formData, { 
               withCredentials: true,
               headers: { 'Content-Type': 'multipart/form-data' }
           });
@@ -115,11 +115,11 @@ export default function CalendarPage() {
             <div className="flex-1 w-full">
                 <p className="font-bold mb-3 text-slate-800">{t('sync_upload_label', { fallback: '1. رفع ملف المواعيد (Excel)' })}</p>
                 <div className="flex flex-wrap gap-3 w-full">
-                    <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments/template`} download className="bg-white hover:bg-slate-100 text-slate-700 px-4 py-2 border border-slate-200 shadow-sm rounded-lg font-bold transition flex items-center justify-center min-w-[200px] shrink-0">
+                    <a href={`/api/merchant/appointments/template`} download className="bg-white hover:bg-slate-100 text-slate-700 px-4 py-2 border border-slate-200 shadow-sm rounded-lg font-bold transition flex items-center justify-center min-w-[200px] shrink-0">
                        <svg className="w-5 h-5 text-[var(--primary-color,#2563eb)] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                        {t('sync_download_booking', { fallback: 'تحميل نموذج المواعيد' })}
                     </a>
-                    <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/appointments/export`} download className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 border border-indigo-200 shadow-sm rounded-lg font-bold transition flex items-center justify-center min-w-[200px] shrink-0">
+                    <a href={`/api/merchant/appointments/export`} download className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 border border-indigo-200 shadow-sm rounded-lg font-bold transition flex items-center justify-center min-w-[200px] shrink-0">
                        <svg className="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                        {t('sync_export_appointments', { fallback: 'تصدير المواعيد الحالية (Excel)' })}
                     </a>

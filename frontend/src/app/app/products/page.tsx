@@ -24,7 +24,7 @@ export default function ProductsPage() {
     fetchProducts();
     
     // Load Settings
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/settings`, { withCredentials: true })
+    axios.get(`/api/merchant/settings`, { withCredentials: true })
         .then(res => {
             if (res.data.data && res.data.data.sheet_url) {
                 setSheetUrl(res.data.data.sheet_url);
@@ -39,7 +39,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products`, { withCredentials: true });
+        const res = await axios.get(`/api/merchant/products`, { withCredentials: true });
         setProducts(res.data.data || []);
     } catch (err) {
         console.error(err);
@@ -53,7 +53,7 @@ export default function ProductsPage() {
     e.preventDefault();
     const loadingToast = toast.loading('...');
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products`, formData, { withCredentials: true });
+      await axios.post(`/api/merchant/products`, formData, { withCredentials: true });
       await fetchProducts();
       setFormData({ name: '', description: '', price: 0, image_url: '' });
       toast.success(tCommon('save'), { id: loadingToast });
@@ -70,10 +70,10 @@ export default function ProductsPage() {
       
       try {
           // Save URL to settings first
-          await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/settings`, { sheet_url: sheetUrl }, { withCredentials: true });
+          await axios.put(`/api/merchant/settings`, { sheet_url: sheetUrl }, { withCredentials: true });
           
           // Trigger Sync
-          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products/sync`, { sheet_url: sheetUrl }, { withCredentials: true });
+          await axios.post(`/api/merchant/products/sync`, { sheet_url: sheetUrl }, { withCredentials: true });
           await fetchProducts();
           toast.success('تم التحديث والمزامنة بنجاح!', { id: loadingToast });
       } catch (err) {
@@ -95,7 +95,7 @@ export default function ProductsPage() {
       formData.append('file', file);
 
       try {
-          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products/upload`, formData, { 
+          await axios.post(`/api/merchant/products/upload`, formData, { 
               withCredentials: true,
               headers: { 'Content-Type': 'multipart/form-data' }
           });
@@ -116,7 +116,7 @@ export default function ProductsPage() {
     
     const loadingToast = toast.loading('...');
     try {
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products/${id}`, { withCredentials: true });
+      await axios.delete(`/api/merchant/products/${id}`, { withCredentials: true });
       setProducts(products.filter(p => p.id !== id));
       toast.success(tCommon('save'), { id: loadingToast });
     } catch(err) {
@@ -141,7 +141,7 @@ export default function ProductsPage() {
     if (!editingProduct) return;
     const loadingToast = toast.loading('...');
     try {
-      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products/${editingProduct.id}`, editFormData, { withCredentials: true });
+      const res = await axios.put(`/api/merchant/products/${editingProduct.id}`, editFormData, { withCredentials: true });
       setProducts(products.map(p => p.id === editingProduct.id ? res.data : p));
       setEditingProduct(null);
       toast.success(t('edit_success'), { id: loadingToast });
@@ -207,7 +207,7 @@ export default function ProductsPage() {
         <p className="text-slate-500 mb-6 text-sm">{t('sync_desc')}</p>
         
         <div className="flex gap-4 mb-8">
-            <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products/template-physical`} download className="bg-white hover:bg-slate-100 text-slate-700 px-5 py-3 border border-slate-200 shadow-sm rounded-lg font-bold transition flex items-center gap-2 w-full justify-center">
+            <a href={`/api/merchant/products/template-physical`} download className="bg-white hover:bg-slate-100 text-slate-700 px-5 py-3 border border-slate-200 shadow-sm rounded-lg font-bold transition flex items-center gap-2 w-full justify-center">
                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                {t('sync_download_physical')}
             </a>

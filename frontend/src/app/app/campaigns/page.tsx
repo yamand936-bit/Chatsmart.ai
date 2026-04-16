@@ -16,7 +16,7 @@ export default function CampaignsPage() {
   const [audienceFilter, setAudienceFilter] = useState('all');
 
   useEffect(() => {
-    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/templates`, { withCredentials: true })
+    axios.get(`/api/merchant/templates`, { withCredentials: true })
       .then(res => {
          if (res.data?.data) setTemplates(res.data.data);
       })
@@ -31,7 +31,7 @@ export default function CampaignsPage() {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/campaigns/send`, {
+      const response = await axios.post(`/api/merchant/campaigns/send`, {
         tag: tag,
         instructions: instructions,
         template_id: selectedTemplate || null,
