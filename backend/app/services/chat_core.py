@@ -151,6 +151,20 @@ async def process_chat_core(
     )
     db.add(user_msg)
     await db.flush()
+    
+    try:
+        import json as _json
+        from app.api.deps import redis_client
+        event = _json.dumps({
+            "type": "new_message",
+            "conversation_id": str(conversation.id),
+            "customer_phone": customer.external_id,
+            "platform": customer.platform,
+            "content": (content or "")[:120],
+        })
+        await redis_client.publish(f"merchant:{business_id}:events", event)
+    except Exception as _pub_err:
+        logger.warning(f"SSE publish failed (non-critical): {_pub_err}")
 
     # ── 4. Human-handoff guard — skip AI when an agent is active ─────────────
     if conversation.status == "human":

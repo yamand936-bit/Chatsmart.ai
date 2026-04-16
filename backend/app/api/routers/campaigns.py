@@ -18,6 +18,32 @@ class CampaignRequest(BaseModel):
     instructions: str
     template_id: str | None = None
 
+class CampaignPreviewRequest(BaseModel):
+    tags: list[str]
+
+@router.post("/preview")
+async def preview_campaign(
+    request: CampaignPreviewRequest,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    all_customers = await db.execute(
+        select(Customer).where(Customer.business_id == business_id)
+    )
+    matched = []
+    for c in all_customers.scalars().all():
+        if "all" in [t.lower() for t in request.tags]:
+            matched.append(c)
+        elif c.tags and isinstance(c.tags, list):
+            if any(rt.lower() in [ct.lower() for ct in c.tags] for rt in request.tags):
+                matched.append(c)
+    sample = [c.name or c.external_id or "Unknown" for c in matched[:5]]
+    return {
+        "status": "ok",
+        "matched_count": len(matched),
+        "sample_names": sample,
+    }
+
 @router.post("/send")
 async def send_smart_campaign(
     request: CampaignRequest,

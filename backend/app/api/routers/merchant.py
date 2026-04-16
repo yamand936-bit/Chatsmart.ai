@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, cast, Date
+from sqlalchemy.orm import selectinload
 from app.api.deps import get_merchant_tenant, redis_client
 from app.db.session import get_db
 from app.models.domain import Product, Order, Conversation, Message, Customer
@@ -1064,6 +1066,12 @@ async def takeover_conversation(
     conv.status = "human"
     db.add(conv)
     await db.commit()
+    try:
+        import json as _json
+        event = _json.dumps({'type': 'handoff', 'conversation_id': conversation_id, 'status': 'human'})
+        await redis_client.publish(f"merchant:{business_id}:events", event)
+    except Exception:
+        pass
     return {"status": "ok", "message": "You are now handling this conversation. AI paused."}
 
 @router.post("/conversations/{conversation_id}/handback")
@@ -1083,6 +1091,12 @@ async def handback_conversation(
     conv.status = "bot"
     db.add(conv)
     await db.commit()
+    try:
+        import json as _json
+        event = _json.dumps({'type': 'handoff', 'conversation_id': conversation_id, 'status': 'bot'})
+        await redis_client.publish(f"merchant:{business_id}:events", event)
+    except Exception:
+        pass
     return {"status": "ok", "message": "AI resumed."}
 
 class AgentReplyRequest(BaseModel):
@@ -1331,31 +1345,35 @@ async def sse_merchant_stream(
 async def get_kanban(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
     res = await db.execute(
         select(Conversation)
+        .options(selectinload(Conversation.customer))
         .where(Conversation.business_id == business_id)
         .order_by(Conversation.updated_at.desc())
         .limit(100)
     )
     convos = res.scalars().all()
     
-    board = {
-        "Cold": [],
-        "Warm": [],
-        "Hot": [],
-        "Ordered": []
-    }
+    # Fetch last message per conversation in one query
+    conv_ids = [c.id for c in convos]
+    last_msgs = {}
+    if conv_ids:
+        msg_res = await db.execute(
+            select(Message)
+            .where(Message.conversation_id.in_(conv_ids))
+            .order_by(Message.conversation_id, Message.created_at.desc())
+        )
+        for m in msg_res.scalars().all():
+            if m.conversation_id not in last_msgs:
+                last_msgs[m.conversation_id] = m.content
     
+    board = {"Cold": [], "Warm": [], "Hot": [], "Ordered": []}
     for c in convos:
-        prio = c.lead_priority or "Cold"
-        if prio not in board:
-             prio = "Cold"
-        
+        prio = c.lead_priority if c.lead_priority in board else "Cold"
         board[prio].append({
             "id": str(c.id),
-            "customer_phone": c.customer_phone,
-            "last_message": c.last_message,
+            "customer_phone": c.customer.external_id if c.customer else "Unknown",
+            "last_message": (last_msgs.get(c.id) or "")[:80],
             "updated_at": c.updated_at.isoformat() if c.updated_at else None
         })
-        
     return {"status": "ok", "data": board}
 
 class UpdatePriorityRequest(BaseModel):
@@ -1382,3 +1400,22 @@ async def update_kanban_priority(
     c.lead_priority = payload.new_priority
     await db.commit()
     return {"status": "ok"}
+
+@router.get("/customers/tags")
+async def list_customer_tags(
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import func
+    result = await db.execute(
+        select(Customer.tags).where(
+            Customer.business_id == business_id,
+            Customer.tags.is_not(None)
+        )
+    )
+    all_tags_nested = result.scalars().all()
+    flat_tags = set()
+    for tag_list in all_tags_nested:
+        if isinstance(tag_list, list):
+            flat_tags.update(tag_list)
+    return {"status": "ok", "data": sorted(list(flat_tags))}

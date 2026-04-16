@@ -538,3 +538,54 @@ async def system_health(admin: dict = Depends(get_current_admin)):
             "db_status": "online" # handled by middleware usually, if here it's online
         }
     }
+
+@router.get("/mrr")
+async def get_mrr(db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    from app.models.business import Business
+    from app.models.ai_usage_log import AIUsageLog
+    from sqlalchemy.future import select
+    from sqlalchemy import func
+    
+    PLAN_PRICES = {"free": 0, "pro": 49, "enterprise": 199}
+
+    biz_res = await db.execute(select(Business))
+    businesses = biz_res.scalars().all()
+
+    total_mrr = 0
+    by_plan = {}
+    churn_risks = []
+
+    for b in businesses:
+        plan = b.plan_name or "free"
+        price = PLAN_PRICES.get(plan, 0)
+        if b.subscription_status in ("active", "trial"):
+            total_mrr += price
+
+        if plan not in by_plan:
+            by_plan[plan] = {"count": 0, "mrr": 0}
+        by_plan[plan]["count"] += 1
+        by_plan[plan]["mrr"] += price
+
+        # Churn risk: using >85% of token quota
+        token_limit = b.token_limit or 100000
+        tokens_used_res = await db.scalar(
+            select(func.sum(AIUsageLog.total_tokens))
+            .where(AIUsageLog.business_id == str(b.id))
+        )
+        tokens_used = tokens_used_res or 0
+        if token_limit > 0 and (tokens_used / token_limit) > 0.85:
+            churn_risks.append({
+                "id": str(b.id),
+                "name": b.name,
+                "plan": plan,
+                "usage_pct": round((tokens_used / token_limit) * 100, 1),
+                "reason": "token_limit_near"
+            })
+
+    return {
+        "status": "ok",
+        "total_mrr": total_mrr,
+        "by_plan": [{"plan": k, **v} for k, v in by_plan.items()],
+        "churn_risks": churn_risks,
+        "total_businesses": len(businesses),
+    }

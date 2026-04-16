@@ -2,7 +2,23 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslations, useLocale } from 'next-intl';
-import { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/Skeleton';
+
+const AdminCharts = dynamic(() => import('@/components/AdminCharts'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-80 rounded-xl w-full" />,
+});
+
+const AdminHealthTab = dynamic(() => import('@/components/AdminHealthTab'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-60" />,
+});
+
+const AdminMRRSummary = dynamic(() => import('@/components/AdminMRRSummary'), {
+  ssr: false,
+  loading: () => <div className="p-10 text-center"><Skeleton className="h-60" /></div>,
+});
 
 const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: string }) => (
   <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between hover:shadow-md transition">
@@ -26,7 +42,7 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<any[]>([]);
   const [systemHealth, setSystemHealth] = useState<any>(null);
   const [logSearch, setLogSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'settings' | 'logs'>('businesses');
+  const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'health' | 'settings' | 'logs'>('businesses');
 
   // New States for Edit / Settings Modal
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
@@ -426,7 +442,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="flex space-x-2 rtl:space-x-reverse bg-gray-100 p-1.5 rounded-xl w-max shadow-inner">
-        {['businesses', 'create', 'usage', 'plans', 'settings', 'logs'].map((tab) => (
+        {['businesses', 'create', 'usage', 'plans', 'health', 'settings', 'logs'].map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
@@ -652,44 +668,7 @@ export default function AdminDashboard() {
                 {tAdmin('table.no_businesses')}
               </div>
             ) : (
-              <div className="grid gap-6">
-                <div className="h-80 w-full bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <h4 className="text-lg font-bold text-slate-700 mb-4">{tAdmin('economic.profit') || 'Economic Profit/Cost ($)'}</h4>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={profitData}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="Profit" fill="#10b981" name={tAdmin('economic.profit') || 'Profit'} radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Cost" fill="#ef4444" name={tAdmin('economic.cost') || 'Cost'} radius={[4, 4, 0, 0]} />
-                      <Line type="monotone" dataKey={tAdmin('forecast.expected') || 'Expected Profit'} stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-                {businesses.map((biz) => {
-                  const quota = biz.monthly_quota || 10000;
-                  const usage = biz.token_usage || 0;
-                  const percentage = Math.min((usage / quota) * 100, 100);
-                  
-                  let progressColor = 'bg-blue-500';
-                  if (percentage >= 90) progressColor = 'bg-red-500';
-                  else if (percentage >= 75) progressColor = 'bg-yellow-500';
-
-                  return (
-                    <div key={biz.id} className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200">
-                      <div className="flex justify-between items-center mb-3 text-sm">
-                        <span className="font-semibold text-slate-800">{biz.name}</span>
-                        <span className="text-slate-500">
-                          <strong className="text-slate-700">{usage.toLocaleString()}</strong> / {quota.toLocaleString()} Tokens
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                        <div className={`h-2.5 rounded-full ${progressColor} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <AdminCharts profitData={profitData} businesses={businesses} tAdmin={tAdmin} />
             )}
           </div>
         )}
@@ -698,8 +677,9 @@ export default function AdminDashboard() {
         {activeTab === 'plans' && (
           <div className="space-y-8">
             <div className="mb-4">
-              <h3 className="text-xl font-semibold text-slate-800">{tAdmin('plans.title') || 'Subscription Plans'}</h3>
-              <p className="text-slate-500">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.title') || 'Subscription Plans'}</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
+              <AdminMRRSummary />
             </div>
 
             {upgradeMsg.text && (
@@ -777,6 +757,11 @@ export default function AdminDashboard() {
                </div>
             </div>
           </div>
+        )}
+
+        {/* Health Tab */}
+        {activeTab === 'health' && (
+          <AdminHealthTab />
         )}
 
         {/* System Settings Tab */}
