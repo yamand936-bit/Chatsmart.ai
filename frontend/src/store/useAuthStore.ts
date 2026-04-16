@@ -62,7 +62,7 @@ if (typeof window !== "undefined") {
   axios.interceptors.request.use((config) => {
     const token = sessionStorage.getItem('impersonate_token');
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    if (token && config.url?.startsWith(apiUrl)) {
+    if (token && (config.url?.startsWith(apiUrl) || config.url?.startsWith('/api'))) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
