@@ -107,6 +107,19 @@ class Message(BaseModel):
     conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
 
 
+class TemplateMessage(BaseModel):
+    __tablename__ = "template_messages"
+
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("businesses.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    language: Mapped[str] = mapped_column(String(50), default="en")
+    body_text: Mapped[str] = mapped_column(String)
+    variables_count: Mapped[int] = mapped_column(Integer, default=0)
+    category: Mapped[str] = mapped_column(String(50), default="MARKETING")
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    business: Mapped["Business"] = relationship("Business")
+
 class UsageLog(BaseModel):
     __tablename__ = "usage_logs"
     __table_args__ = (

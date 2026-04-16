@@ -115,7 +115,28 @@ export default function ChatPage() {
     if(!textToSend.trim() || limitReached) return;
     
     if(selectedConversation) {
-        toast("لا يمكن الإرسال حالياً إلا في وضع المحاكي.", { icon: '⚠️' });
+        const currentConvo = conversations.find(c => c.id === selectedConversation);
+        if (currentConvo?.status !== 'human') {
+            toast("You must take over the conversation first.", { icon: '⚠️' });
+            return;
+        }
+
+        setMessages(prev => [...prev, {role: 'user', text: textToSend}]);
+        if (!manualText) setInput('');
+        setIsTyping(true);
+
+        try {
+            await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/reply`, 
+                { message: textToSend }, 
+                { withCredentials: true }
+            );
+            // Refresh conversation messages since agent sent it
+            loadConversationMessages(selectedConversation);
+        } catch(err) {
+            toast.error(tCommon('error'));
+        } finally {
+            setIsTyping(false);
+        }
         return;
     }
 
@@ -294,24 +315,31 @@ export default function ChatPage() {
                   onClick={async () => {
                      const currentConvo = conversations.find(c => c.id === selectedConversation);
                      if(currentConvo) {
-                         const newStatus = currentConvo.status === 'bot' ? 'human' : 'bot';
+                         const currentStatus = currentConvo.status;
+                         const isBot = currentStatus === 'bot';
+                         const newStatus = isBot ? 'human' : 'bot';
+                         const endpoint = isBot ? 'takeover' : 'handback';
+                         
+                         // Optimistic Update
                          setConversations(prev => prev.map(c => c.id === selectedConversation ? {...c, status: newStatus} : c));
-                         toast.success(newStatus === 'bot' ? 'تم تشغيل البوت بنجاح' : 'تم إيقاف البوت مؤقتاً');
+                         toast.success(isBot ? 'You have taken over. AI paused.' : 'AI Resumed.');
+                         
                          try {
-                           await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/status`, { status: newStatus }, { withCredentials: true });
+                           await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/${endpoint}`, {}, { withCredentials: true });
                          } catch (e) {
-                           toast.error('حدث خطأ أثناء تغيير الحالة');
-                           setConversations(prev => prev.map(c => c.id === selectedConversation ? {...c, status: currentConvo.status} : c));
+                           toast.error('Error changing conversation status.');
+                           // Revert optimistic update
+                           setConversations(prev => prev.map(c => c.id === selectedConversation ? {...c, status: currentStatus} : c));
                          }
                      }
                   }}
                   className={`font-bold px-3 py-1.5 rounded text-sm transition ${
                     conversations.find(c => c.id === selectedConversation)?.status === 'bot' 
-                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-inner border border-green-400' 
-                    : 'bg-red-500 hover:bg-red-600 text-white shadow-sm border border-red-400'
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm border border-red-400'
+                    : 'bg-green-500 hover:bg-green-600 text-white shadow-inner border border-green-400' 
                   }`}
                 >
-                  {conversations.find(c => c.id === selectedConversation)?.status === 'bot' ? '🤖 AI Active' : '⏸️ AI Paused'}
+                  {conversations.find(c => c.id === selectedConversation)?.status === 'bot' ? '⏸️ Take Over (Pause AI)' : '🤖 Hand Back (Resume AI)'}
                 </button>
               )}
               <button onClick={() => handleOpenOrderModal()} className="bg-white text-[var(--primary-color,#2563eb)] font-bold px-4 py-2 rounded shadow-sm hover:opacity-90 transition text-sm">
@@ -360,13 +388,15 @@ export default function ChatPage() {
             <form onSubmit={e => handleSend(e)} className="flex gap-2">
               <input 
                 type="text" value={input} onChange={e => setInput(e.target.value)}
-                placeholder={selectedConversation ? 'هذه نافذة عرض فقط. لا يمكنك الرد محلياً حالياً.' : (limitReached ? t('limit_reached') : t('typeMessage'))}
+                placeholder={selectedConversation 
+                  ? (conversations.find(c => c.id === selectedConversation)?.status === 'human' ? 'You are controlling this chat. Type a reply...' : 'AI is handling this chat. Take over to reply.') 
+                  : (limitReached ? t('limit_reached') : t('typeMessage'))}
                 className={`flex-1 border text-slate-800 p-3 rounded-full focus:outline-none focus:border-[var(--primary-color,#2563eb)] focus:ring-1 focus:ring-[var(--primary-color,#2563eb)] ${limitReached ? 'bg-red-50 border-red-200' : ''}`}
-                disabled={isTyping || limitReached || selectedConversation !== null}
+                disabled={isTyping || limitReached || (selectedConversation !== null && conversations.find(c => c.id === selectedConversation)?.status === 'bot')}
               />
               <button 
                 type="submit" 
-                disabled={isTyping || !input.trim() || limitReached || selectedConversation !== null}
+                disabled={isTyping || !input.trim() || limitReached || (selectedConversation !== null && conversations.find(c => c.id === selectedConversation)?.status === 'bot')}
                 className="bg-[var(--primary-color,#2563eb)] text-white px-6 py-2 rounded-full font-medium hover:opacity-90 disabled:opacity-50 transition"
               >
                 {t('send')}

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
     const t = useTranslations('settings');
+    const tCommon = useTranslations('common');
     const [stats, setStats] = useState({ consumed_tokens: 0 });
     const [tone, setTone] = useState("Professional");
     
@@ -24,6 +25,11 @@ export default function SettingsPage() {
     const [telegramBotToken, setTelegramBotToken] = useState("");
     const [telegramWebhookSecret, setTelegramWebhookSecret] = useState("");
     const [activeFeatures, setActiveFeatures] = useState<string[]>([]);
+    
+    // Bot Flows
+    const [botFlows, setBotFlows] = useState<any[]>([]);
+    const [editingFlow, setEditingFlow] = useState<any | null>(null);
+    const [showFlowForm, setShowFlowForm] = useState(false);
     
     const [updating, setUpdating] = useState(false);
     const limit = 10000; // Trial limit
@@ -58,6 +64,10 @@ export default function SettingsPage() {
                 setActiveFeatures(data.active_features);
             }
         })
+        .catch(console.error);
+        
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, { withCredentials: true })
+        .then(res => setBotFlows(res.data.data || []))
         .catch(console.error);
     }, []);
 
@@ -109,16 +119,59 @@ export default function SettingsPage() {
             </div>
 
             {/* Knowledge Base */}
-            <div className="bg-white p-6 rounded-xl shadow border border-slate-100">
+            <div className="bg-white p-6 rounded-xl shadow border border-slate-100 mb-6">
                 <h3 className="text-lg font-bold text-slate-800 mb-2">{t('kb_title')}</h3>
                 <p className="text-slate-500 mb-4 text-sm">{t('kb_desc')}</p>
-                <textarea 
-                   rows={4}
-                   value={knowledgeBase}
-                   onChange={(e) => setKnowledgeBase(e.target.value)}
-                   placeholder={t('kb_placeholder')}
-                   className="w-full rounded border-gray-300 shadow-sm p-3 bg-slate-50 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
-                ></textarea>
+                
+                <div className="flex gap-4">
+                     <textarea 
+                        rows={4}
+                        value={knowledgeBase}
+                        onChange={(e) => setKnowledgeBase(e.target.value)}
+                        placeholder={t('kb_placeholder')}
+                        className="w-full rounded border-gray-300 shadow-sm p-3 bg-slate-50 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+                     ></textarea>
+                </div>
+                
+                <div className="mt-4 flex flex-col md:flex-row md:items-center gap-4">
+                     <input type="file" id="kb-file" className="hidden" accept=".txt,.pdf,.docx" onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                               const file = e.target.files[0];
+                               const formData = new FormData();
+                               formData.append('file', file);
+                               const toastId = toast.loading("Processing file with AI...");
+                               try {
+                                    await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/knowledge`, formData, { withCredentials: true });
+                                    toast.success("File processed & learned successfully!", {id: toastId});
+                               } catch (err) {
+                                    toast.error("Error processing file", {id: toastId});
+                               }
+                          }
+                     }} />
+                     <label htmlFor="kb-file" className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded text-sm font-medium transition border border-slate-300 shadow-sm flex items-center justify-center gap-2">
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                         Upload File (PDF, DOCX, TXT)
+                     </label>
+                     <button onClick={async () => {
+                         if (!knowledgeBase.trim()) return toast.error("Text is empty");
+                         const formData = new FormData();
+                         formData.append('text', knowledgeBase);
+                         const toastId = toast.loading("Processing text with AI...");
+                         try {
+                              await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/knowledge`, formData, { withCredentials: true });
+                              toast.success("Knowledge Base ingested!", {id: toastId});
+                              setKnowledgeBase("");
+                         } catch (err) {
+                              toast.error("Error ingesting text", {id: toastId});
+                         }
+                     }} className="bg-[var(--primary-color,#2563eb)] hover:opacity-90 text-white px-4 py-2 rounded text-sm font-medium transition shadow-sm">
+                         Learn Text Source
+                     </button>
+                </div>
+                <div className="mt-3 text-xs text-slate-500 flex items-center gap-2">
+                   <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]"></span>
+                   Powered by Semantic Vector Search (pgvector)
+                </div>
             </div>
 
             {/* Payment Details */}
@@ -179,6 +232,111 @@ export default function SettingsPage() {
                 <p className="text-slate-500 mb-4 text-sm">إذا كان لديك أكثر من موظف/طبيب، اكتب أسماءهم مفصولة بفاصلة. سيقوم الذكاء الاصطناعي بتخيير العميل بينهم عند الحجز ليتجنب التضارب.</p>
                 <div>
                     <input type="text" value={staffMembers} onChange={(e) => setStaffMembers(e.target.value)} placeholder="مثال: د. يمان, د. خالد, د. سارة" className="w-full rounded border-gray-300 shadow-sm p-3 bg-slate-50 outline-none" />
+                </div>
+            </div>
+
+            {/* Bot Flows */}
+            <div className="bg-white p-6 rounded-xl shadow border border-slate-100">
+                <div className="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">{t('botFlows')}</h3>
+                        <p className="text-slate-500 text-sm">No-code keyword trigger bot responses</p>
+                    </div>
+                    <button onClick={() => { setEditingFlow({name: '', is_active: true, priority: 0, rules: [{trigger: '', match: 'contains', response: ''}]}); setShowFlowForm(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition">
+                        + {t('newFlow')}
+                    </button>
+                </div>
+
+                {showFlowForm && editingFlow && (
+                    <div className="mb-6 p-4 border rounded-lg bg-indigo-50 border-indigo-100">
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-bold text-slate-800">{editingFlow.id ? tCommon('edit') : t('newFlow')}</h4>
+                            <button onClick={() => setShowFlowForm(false)} className="text-slate-500 hover:text-slate-700">✕</button>
+                        </div>
+                        <div className="flex gap-4 mb-4">
+                            <div className="flex-1">
+                                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('flowName')}</label>
+                                <input type="text" value={editingFlow.name} onChange={e => setEditingFlow({...editingFlow, name: e.target.value})} className="w-full rounded border p-2 text-sm outline-none focus:border-indigo-500" />
+                            </div>
+                            <div className="flex items-center gap-2 mt-5">
+                                <input type="checkbox" checked={editingFlow.is_active} onChange={e => setEditingFlow({...editingFlow, is_active: e.target.checked})} className="w-4 h-4 cursor-pointer" />
+                                <label className="text-sm font-medium text-slate-700">Active</label>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-3 mb-4">
+                            <label className="block text-xs font-semibold text-slate-700">{t('flowRules')}</label>
+                            {editingFlow.rules.map((rule: any, idx: number) => (
+                                <div key={idx} className="flex flex-col md:flex-row gap-2 bg-white p-3 rounded border shadow-sm items-start md:items-center">
+                                    <div className="flex-1">
+                                        <input type="text" placeholder={t('triggerKeyword')} value={rule.trigger} onChange={e => {
+                                            const newR = [...editingFlow.rules]; newR[idx].trigger = e.target.value; setEditingFlow({...editingFlow, rules: newR});
+                                        }} className="w-full rounded border border-slate-200 p-2 text-sm outline-none" />
+                                    </div>
+                                    <div className="shrink-0">
+                                        <select value={rule.match} onChange={e => {
+                                            const newR = [...editingFlow.rules]; newR[idx].match = e.target.value; setEditingFlow({...editingFlow, rules: newR});
+                                        }} className="rounded border border-slate-200 p-2 text-sm outline-none bg-slate-50">
+                                            <option value="contains">Contains</option>
+                                            <option value="exact">Exact Match</option>
+                                            <option value="starts_with">Starts With</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex-1">
+                                        <textarea placeholder={t('responseText')} value={rule.response} onChange={e => {
+                                            const newR = [...editingFlow.rules]; newR[idx].response = e.target.value; setEditingFlow({...editingFlow, rules: newR});
+                                        }} className="w-full rounded border border-slate-200 p-2 text-sm outline-none h-[38px] resize-none" />
+                                    </div>
+                                    <button onClick={() => {
+                                        const newR = [...editingFlow.rules]; newR.splice(idx, 1); setEditingFlow({...editingFlow, rules: newR});
+                                    }} className="text-red-500 hover:bg-red-50 p-2 rounded">
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                            <button onClick={() => setEditingFlow({...editingFlow, rules: [...editingFlow.rules, {trigger: '', match: 'contains', response: ''}]})} className="text-indigo-600 text-sm font-medium hover:underline">
+                                + {t('addRule')}
+                            </button>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button onClick={async () => {
+                                try {
+                                    if(editingFlow.id) {
+                                        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows/${editingFlow.id}`, editingFlow, { withCredentials: true });
+                                    } else {
+                                        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, editingFlow, { withCredentials: true });
+                                    }
+                                    toast.success(t('saved'));
+                                    setShowFlowForm(false);
+                                    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows`, { withCredentials: true }).then(res => setBotFlows(res.data.data));
+                                } catch(e) { toast.error("Error saving flow"); }
+                            }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition">
+                                {t('saveFlow')}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    {botFlows.map(flow => (
+                        <div key={flow.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-slate-50">
+                            <div>
+                                <div className="font-semibold text-slate-800">{flow.name}</div>
+                                <div className="text-xs text-slate-500">{flow.rules.length} Rules • {flow.is_active ? <span className="text-green-600">Active</span> : <span className="text-red-500">Inactive</span>}</div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => { setEditingFlow(flow); setShowFlowForm(true); }} className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded text-sm border">{tCommon('edit')}</button>
+                                <button onClick={async () => {
+                                    if(confirm(tCommon('delete_confirm'))) {
+                                        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/flows/${flow.id}`, { withCredentials: true });
+                                        setBotFlows(botFlows.filter(f => f.id !== flow.id));
+                                    }
+                                }} className="text-red-600 hover:bg-red-50 px-3 py-1 rounded text-sm border">{tCommon('delete')}</button>
+                            </div>
+                        </div>
+                    ))}
+                    {botFlows.length === 0 && <p className="text-sm text-slate-500 text-center py-4">No flows created yet.</p>}
                 </div>
             </div>
 

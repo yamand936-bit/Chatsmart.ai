@@ -13,10 +13,11 @@ from app.core.config import settings
 router = APIRouter()
 
 async def check_rate_limit(key: str, limit: int, window: int):
-    """Simple sliding window rate limit using Redis"""
-    # Strictly use SET NX EX logic to ensure expiry only happens on initial creation, preventing reset bypasses.
+    """Sliding window rate limit using Redis"""
     await redis_client.set(key, 0, nx=True, ex=window)
     current_count = await redis_client.incr(key)
+    # Reset TTL on every request to create a true sliding window block
+    await redis_client.expire(key, window)
     if current_count > limit:
         minutes = getattr(window, "minutes", window // 60)
         raise HTTPException(status_code=429, detail=f"Too many requests. Please try again after {minutes} minutes.")

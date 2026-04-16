@@ -124,15 +124,22 @@ async def transmit_telegram(bot_token: str, chat_id: str, text: str, smart_cards
                     except Exception as e:
                         logger.error(f"Telegram inline card transmission failed: {e}")
 
-async def transmit_meta_graph(phone_number_id: str, access_token: str, recipient_id: str, text: str = None, interactive_payload: dict = None):
+async def transmit_meta_graph(phone_number_id: str, access_token: str, recipient_id: str, text: str = None, interactive_payload: dict = None, template_payload: dict = None):
     if settings.INTEGRATIONS_MODE == "mock":
-        logger.info(f"[MOCK] Meta Graph Message (wa_id/ig_id {recipient_id}): {text} | INTERACTIVE: {interactive_payload}")
+        logger.info(f"[MOCK] Meta Graph Message (wa_id/ig_id {recipient_id}): {text} | INTERACTIVE: {interactive_payload} | TEMPLATE: {template_payload}")
         return
         
     # v20.0 Meta Graph API Standard
     url = f"https://graph.facebook.com/v20.0/{phone_number_id}/messages"
     
-    if interactive_payload:
+    if template_payload:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": recipient_id,
+            "type": "template",
+            "template": template_payload
+        }
+    elif interactive_payload:
         payload = {
             "messaging_product": "whatsapp",
             "to": recipient_id,

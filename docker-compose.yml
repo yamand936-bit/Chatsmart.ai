@@ -43,8 +43,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET:-production_ready_secret_key_123}
+      - JWT_SECRET=${JWT_SECRET}
       - INTEGRATIONS_MODE=live
+      - IS_PRODUCTION=${IS_PRODUCTION:-true}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["https://smartchat-ai.org","https://www.smartchat-ai.org","http://localhost:3000"]}
     depends_on:
       db:

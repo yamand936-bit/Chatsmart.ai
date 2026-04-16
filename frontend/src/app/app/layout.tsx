@@ -51,17 +51,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations('merchant');
   const tLayout = useTranslations('layout');
   const [businessType, setBusinessType] = useState('retail');
+  const router = require('next/navigation').useRouter();
+  const pathname = require('next/navigation').usePathname();
 
   useEffect(() => {
     // Fetch business type for conditional routing
     axios.get(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/merchant/settings`, { withCredentials: true })
       .then(res => {
-        if (res.data?.data?.business_type) {
-          setBusinessType(res.data.data.business_type);
+        if (res.data?.data) {
+          if (res.data.data.business_type) setBusinessType(res.data.data.business_type);
+          if (res.data.data.setup_complete === false && !pathname.includes('/app/onboarding')) {
+              router.push('/app/onboarding');
+          }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [pathname, router]);
 
   useEffect(() => {
      // Mock New Message Notification (Simulate a live WhatsApp message after 3 seconds)

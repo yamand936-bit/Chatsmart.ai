@@ -16,6 +16,7 @@ router = APIRouter()
 class CampaignRequest(BaseModel):
     tag: str
     instructions: str
+    template_id: str | None = None
 
 @router.post("/send")
 async def send_smart_campaign(
@@ -27,6 +28,12 @@ async def send_smart_campaign(
     """
     Kicks off a smart AI campaign targeting customers with a specific tag.
     """
+    from app.models.business import Business
+    bus_res = await db.execute(select(Business).where(Business.id == business_id))
+    business = bus_res.scalar_one_or_none()
+    if business and business.plan_name == 'free':
+        raise HTTPException(status_code=403, detail='Upgrade to use campaigns')
+        
     all_customers = await db.execute(select(Customer).where(Customer.business_id == business_id))
     matched_customers = []
     
@@ -43,11 +50,11 @@ async def send_smart_campaign(
             detail="لم يتم العثور على أي عملاء يمتلكون هذا الوسم (Tag). يرجى التأكد من كتابة وسم موجود ضمن قائمة عملائك واستخدامه مسبقاً."
         )
 
-    background_tasks.add_task(process_campaign_batch, str(business_id), [str(c.id) for c in matched_customers], request.instructions)
+    background_tasks.add_task(process_campaign_batch, str(business_id), [str(c.id) for c in matched_customers], request.instructions, request.template_id)
     
     return {"status": "success", "message": f"Campaign queued for {len(matched_customers)} customers."}
 
-async def process_campaign_batch(business_id: str, customer_ids: list, instructions: str):
+async def process_campaign_batch(business_id: str, customer_ids: list, instructions: str, template_id: str = None):
     from app.db.session import async_session_maker
     
     async with async_session_maker() as session:
@@ -71,23 +78,63 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
                 messages = msg_res.scalars().all()
                 history_text = "\n".join([f"{'User' if m.sender_type=='user' else 'AI'}: {m.content}" for m in messages[-10:]])
                 
-                prompt = f"""
-                You are a smart marketing assistant.
-                Write a highly personalized short message for this customer based on their past conversation.
-                
-                Marketing Instructions / Offer: "{instructions}"
-                Customer Platform: {customer.platform}
-                Language: Match the language of the conversation.
-                
-                Past Conversation Context:
-                {history_text}
-                
-                Format: Respond ONLY with the finalized message text. Keep it friendly, persuasive, and relevant.
-                """
-                
-                ai_req = [{"role": "user", "content": prompt}]
-                result = await AIRouter.generate(session, ai_req, force_json=False)
-                personalized_message = result["text"].strip()
+                from app.models.domain import TemplateMessage
+                template = None
+                if template_id:
+                    t_res = await session.execute(select(TemplateMessage).where(TemplateMessage.id == uuid.UUID(template_id)))
+                    template = t_res.scalar_one_or_none()
+
+                personalized_message = ""
+                template_payload = None
+
+                if customer.platform == "whatsapp" and template:
+                    prompt = f"""
+                    You are a smart marketing assistant.
+                    We are sending a WhatsApp Meta approved template to this customer.
+                    Template body: {template.body_text}
+                    You need to generate {template.variables_count} short variable phrases to complete this template logically for this customer based on their history.
+                    Marketing Instructions: "{instructions}"
+                    Past Context: {history_text}
+                    Return ONLY a JSON array of strings for the variables, e.g. ["Sale", "Friday"]. If variables_count is 0, return [].
+                    """
+                    ai_req = [{"role": "user", "content": prompt}]
+                    result = await AIRouter.generate(session, ai_req, force_json=True)
+                    import json
+                    try:
+                        vars_list = json.loads(result["text"])
+                        if not isinstance(vars_list, list): vars_list = []
+                    except:
+                        vars_list = []
+                        
+                    parameters = [{"type": "text", "text": str(v)} for v in vars_list[:template.variables_count]]
+                    template_payload = {
+                        "name": template.name,
+                        "language": {"code": template.language},
+                        "components": [{"type": "body", "parameters": parameters}] if parameters else []
+                    }
+                    personalized_message = f"[Template: {template.name}] variables: {vars_list}"
+                elif customer.platform == "whatsapp" and not template:
+                    # Meta prohibits freeform outbound messages outside the 24h window.
+                    # We skip this customer to avoid being flagged/banned.
+                    continue
+                else:
+                    prompt = f"""
+                    You are a smart marketing assistant.
+                    Write a highly personalized short message for this customer based on their past conversation.
+                    
+                    Marketing Instructions / Offer: "{instructions}"
+                    Customer Platform: {customer.platform}
+                    Language: Match the language of the conversation.
+                    
+                    Past Conversation Context:
+                    {history_text}
+                    
+                    Format: Respond ONLY with the finalized message text. Keep it friendly, persuasive, and relevant.
+                    """
+                    
+                    ai_req = [{"role": "user", "content": prompt}]
+                    result = await AIRouter.generate(session, ai_req, force_json=False)
+                    personalized_message = result["text"].strip()
                 
                 camp_msg = Message(
                     business_id=uuid.UUID(business_id),
@@ -107,7 +154,8 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
                                 w_config.get("phone_number_id", ""),
                                 w_config.get("access_token", ""),
                                 customer.external_id,
-                                personalized_message
+                                text=personalized_message if not template_payload else None,
+                                template_payload=template_payload
                             )
                     elif customer.platform == "telegram":
                         from app.api.routers.integrations import transmit_telegram, get_feature_config

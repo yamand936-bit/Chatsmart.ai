@@ -11,6 +11,7 @@ export default function MerchantDashboard() {
      sales_trend: [],
      platform_distribution: []
   });
+  const [advData, setAdvData] = useState<any>(null);
   
   const t = useTranslations('merchant');
   const tDash = useTranslations('dashboard');
@@ -29,6 +30,10 @@ export default function MerchantDashboard() {
     .finally(() => {
        setLoading(false);
     });
+
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/analytics/merchant/summary`, { withCredentials: true })
+    .then(res => setAdvData(res.data.data ? res.data.data : res.data))
+    .catch(console.error);
   }, []);
 
   if (loading) {
@@ -45,6 +50,41 @@ export default function MerchantDashboard() {
               {tDash('export_pdf', { fallback: 'تصدير التقرير (PDF)' })}
           </button>
        </div>
+
+       {advData && (
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('totalConversations', {fallback: 'Total Conversations'})}</div>
+                   <div className="text-2xl font-bold text-slate-800 mt-2">{advData.total_conversations}</div>
+               </div>
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('botHandled', {fallback: 'Bot Handled'})}</div>
+                   <div className="text-2xl font-bold text-green-600 mt-2">{advData.bot_handled}</div>
+               </div>
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('humanHandled', {fallback: 'Human Handled'})}</div>
+                   <div className="text-2xl font-bold text-amber-500 mt-2">{advData.human_handled}</div>
+               </div>
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('avgResponseTime', {fallback: 'Avg Response Time'})}</div>
+                   <div className="text-2xl font-bold text-blue-600 mt-2">{advData.avg_response_time_ms} ms</div>
+               </div>
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between col-span-2 md:col-span-1">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('tokenCost', {fallback: 'Token Cost (30d)'})}</div>
+                   <div className="text-2xl font-bold text-slate-800 mt-2">${advData.token_cost_total}</div>
+               </div>
+               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between col-span-2 md:col-span-3">
+                   <div className="text-slate-500 text-sm font-medium">{tDash('topIntents', {fallback: 'Top AI Intents'})}</div>
+                   <div className="flex flex-wrap gap-2 mt-2">
+                       {advData.top_intents?.map((ti: any, i: number) => (
+                           <span key={i} className="px-2 py-1 bg-slate-100 rounded text-sm text-slate-700 font-medium">
+                               {ti.intent}: {ti.count}
+                           </span>
+                       ))}
+                   </div>
+               </div>
+           </div>
+       )}
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-6 rounded-xl shadow border border-slate-100">

@@ -223,6 +223,51 @@ async def process_chat_core(
 
         return ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), []
 
+    # ── 5.6. Check NO-CODE Bot Flows (keyword overrides AI) ───────────────────
+    from app.models.bot_flow import BotFlow
+    from sqlalchemy.future import select
+    flows_res = await db.execute(
+        select(BotFlow).where(
+            BotFlow.business_id == business_id,
+            BotFlow.is_active == True
+        ).order_by(BotFlow.priority.desc())
+    )
+    active_flows = flows_res.scalars().all()
+    msg_lower = content.strip().lower()
+
+    for flow in active_flows:
+        for rule in (flow.rules or []):
+            trigger = rule.get("trigger", "").lower().strip()
+            if not trigger: continue
+            match = rule.get("match", "contains")
+            
+            is_match = False
+            if match == "exact" and msg_lower == trigger:
+                is_match = True
+            elif match == "contains" and trigger in msg_lower:
+                is_match = True
+            elif match == "starts_with" and msg_lower.startswith(trigger):
+                is_match = True
+                
+            if is_match:
+                response_text = rule.get("response", "")
+                
+                # Save Bot Message
+                bot_msg = Message(
+                    business_id=business_id,
+                    conversation_id=conversation.id,
+                    sender_type="bot",
+                    content=response_text,
+                    intent="flow_match",
+                    model_used="bot_flow",
+                    token_count=0 
+                )
+                db.add(bot_msg)
+                await db.commit()
+                await db.refresh(user_msg)
+                
+                return response_text, "flow_match", str(user_msg.id), str(conversation.id), []
+
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
     

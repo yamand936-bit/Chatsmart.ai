@@ -28,9 +28,10 @@ class AIEngineService:
         self.bank_details = bank_details
         self.staff_members = staff_members or []
 
-    async def generate_system_prompt(self, db) -> str:
+    async def generate_system_prompt(self, db, user_message: str = None) -> str:
         from app.services.prompt_factory import DomainPromptFactory
         from app.services.availability_service import AvailabilityService
+        from app.services.knowledge_service import search_knowledge
         import datetime
 
         # Context Details
@@ -48,6 +49,15 @@ class AIEngineService:
         now_ast = now_utc + datetime.timedelta(hours=3)
         date_str_today = now_ast.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S (AST/Turkey Time)")
 
+        if user_message:
+            try:
+                knowledge_context_str = await search_knowledge(db, uuid.UUID(str(self.business_id)), user_message, top_k=5)
+            except Exception as e:
+                logger.error(f"Knowledge search error: {e}")
+                knowledge_context_str = self.knowledge_base or ''
+        else:
+            knowledge_context_str = self.knowledge_base or ''
+
         return DomainPromptFactory.generate_prompt(
             business_type=self.business_type,
             customer_name=self.customer_name,
@@ -55,7 +65,7 @@ class AIEngineService:
             products_context=products_context,
             staff_str=staff_str,
             availability_info=availability_info,
-            knowledge_base=self.knowledge_base,
+            knowledge_base=knowledge_context_str,
             payment_info=payment_info,
             language=self.language,
             ai_tone=self.ai_tone,
@@ -89,7 +99,7 @@ class AIEngineService:
         if not self.funnel_state and len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
             is_simple = True
 
-        system_prompt = await self.generate_system_prompt(db)
+        system_prompt = await self.generate_system_prompt(db, user_message)
         messages = [{"role": "system", "content": system_prompt}]
 
         history_count = 0

@@ -288,7 +288,16 @@
     "logo_url": "Logo URL",
     "save_btn": "Save",
     "saving_btn": "Saving...",
-    "kb_placeholder": "...Enter store policies here for the AI to learn"
+    "kb_placeholder": "...Enter store policies here for the AI to learn",
+    "botFlows": "Bot Flows",
+    "newFlow": "New Flow",
+    "flowName": "Flow Name",
+    "flowRules": "Flow Rules",
+    "triggerKeyword": "Trigger Keyword",
+    "matchType": "Match Type",
+    "responseText": "Response Text",
+    "addRule": "Add Rule",
+    "saveFlow": "Save Flow"
   },
   "layout": {
     "whatsapp_connected": "WhatsApp: Connected 🟢",
@@ -308,7 +317,15 @@
     "revenue": "Revenue ($)",
     "messages_distribution": "Messages Distribution by Channel",
     "messages_count": "Messages Count",
-    "no_messages_yet": "No messages recorded yet."
+    "no_messages_yet": "No messages recorded yet.",
+    "analyticsTitle": "Analytics",
+    "totalConversations": "Total Conversations",
+    "botHandled": "Bot Handled",
+    "humanHandled": "Human Handled",
+    "avgResponseTime": "Avg Response Time",
+    "tokenCost": "Token Cost (30d)",
+    "topIntents": "Top AI Intents",
+    "messagesOverTime": "Messages Over Time"
   },
   "campaigns": {
     "title": "Smart Marketing Campaigns",

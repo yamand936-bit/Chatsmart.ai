@@ -28,6 +28,7 @@ class Business(BaseModel):
     notification_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notification_telegram: Mapped[str | None] = mapped_column(String(255), nullable=True)
     staff_members: Mapped[List | None] = mapped_column(JSON, default=list, nullable=True)
+    setup_complete: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="business", cascade="all, delete-orphan")

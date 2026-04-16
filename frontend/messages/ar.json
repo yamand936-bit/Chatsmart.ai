@@ -288,7 +288,16 @@
     "logo_url": "رابط الشعار (Logo URL)",
     "save_btn": "حفظ الإعدادات (Save)",
     "saving_btn": "جاري الحفظ...",
-    "kb_placeholder": "...أدخل سياسات المتجر هنا ليتعلمها الذكاء الاصطناعي"
+    "kb_placeholder": "...أدخل سياسات المتجر هنا ليتعلمها الذكاء الاصطناعي",
+    "botFlows": "مسارات الردود التلقائية",
+    "newFlow": "مسار جديد",
+    "flowName": "اسم المسار",
+    "flowRules": "قواعد المسار",
+    "triggerKeyword": "الكلمة المفتاحية",
+    "matchType": "نوع التطابق",
+    "responseText": "نص الرد",
+    "addRule": "إضافة قاعدة",
+    "saveFlow": "حفظ المسار"
   },
   "layout": {
     "whatsapp_connected": "واتساب: متصل 🟢",
@@ -308,7 +317,15 @@
     "revenue": "الأرباح ($)",
     "messages_distribution": "توزيع الرسائل حسب القناة",
     "messages_count": "عدد الرسائل",
-    "no_messages_yet": "لا توجد رسائل مسجلة بعد."
+    "no_messages_yet": "لا توجد رسائل مسجلة بعد.",
+    "analyticsTitle": "التحليلات",
+    "totalConversations": "إجمالي المحادثات",
+    "botHandled": "المحادثات الآلية",
+    "humanHandled": "المحادثات البشرية",
+    "avgResponseTime": "متوسط وقت الرد",
+    "tokenCost": "تكلفة التوكنز (٣٠ يوم)",
+    "topIntents": "أبرز استفسارات الذكاء الاصطناعي",
+    "messagesOverTime": "الرسائل بمرور الوقت"
   },
   "campaigns": {
     "title": "الحملات التسويقية الذكية",

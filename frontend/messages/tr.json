@@ -287,7 +287,16 @@
     "logo_url": "Logo URL",
     "save_btn": "Kaydet",
     "saving_btn": "Kaydediliyor...",
-    "kb_placeholder": "...YZ'nin öğrenmesi için mağaza politikalarını buraya girin"
+    "kb_placeholder": "...YZ'nin öğrenmesi için mağaza politikalarını buraya girin",
+    "botFlows": "Otomatik Yanıt Akışları",
+    "newFlow": "Yeni Akış",
+    "flowName": "Akış Adı",
+    "flowRules": "Akış Kuralları",
+    "triggerKeyword": "Tetikleyici Kelime",
+    "matchType": "Eşleşme Türü",
+    "responseText": "Yanıt Metni",
+    "addRule": "Kural Ekle",
+    "saveFlow": "Akışı Kaydet"
   },
   "layout": {
     "whatsapp_connected": "WhatsApp: Bağlı 🟢",
@@ -307,7 +316,15 @@
     "revenue": "Gelir ($)",
     "messages_distribution": "Kanala Göre Mesaj Dağılımı",
     "messages_count": "Mesaj Sayısı",
-    "no_messages_yet": "Henüz kaydedilmiş mesaj yok."
+    "no_messages_yet": "Henüz kaydedilmiş mesaj yok.",
+    "analyticsTitle": "Analiz",
+    "totalConversations": "Toplam Görüşmeler",
+    "botHandled": "Bot Tarafından Yönlendirilen",
+    "humanHandled": "İnsan Tarafından Yönlendirilen",
+    "avgResponseTime": "Ort. Yanıt Süresi",
+    "tokenCost": "Jeton Maliyeti (30g)",
+    "topIntents": "En Popüler Niyetler",
+    "messagesOverTime": "Zaman İçindeki Mesajlar"
   },
   "campaigns": {
     "title": "Akıllı Pazarlama Kampanyaları",

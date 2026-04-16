@@ -58,6 +58,9 @@ class SettingsUpdate(BaseModel):
     notification_email: Optional[str] = None
     notification_telegram: Optional[str] = None
     staff_members: Optional[List[str]] = None
+    setup_complete: Optional[bool] = None
+    name: Optional[str] = None
+    language: Optional[str] = None
 
 class SyncRequest(BaseModel):
     sheet_url: str
@@ -514,7 +517,10 @@ async def get_settings(business_id: uuid.UUID = Depends(get_merchant_tenant), db
             "notification_email": business.notification_email,
             "notification_telegram": business.notification_telegram,
             "staff_members": business.staff_members or [],
-            "active_features": active_features
+            "active_features": active_features,
+            "setup_complete": business.setup_complete,
+            "name": business.name,
+            "language": business.language
         }
     }
 
@@ -544,6 +550,12 @@ async def update_settings(data: SettingsUpdate, business_id: uuid.UUID = Depends
          business.notification_telegram = data.notification_telegram
     if data.staff_members is not None:
          business.staff_members = data.staff_members
+    if data.setup_complete is not None:
+         business.setup_complete = data.setup_complete
+    if data.name is not None:
+         business.name = data.name
+    if data.language is not None:
+         business.language = data.language
          
     await db.commit()
     return {"status": "ok", "message": "Settings updated"}
@@ -1009,27 +1021,418 @@ async def get_conversation_messages(conversation_id: str, business_id: uuid.UUID
     msgs = result.scalars().all()
     return {"status": "ok", "data": [{"id": str(m.id), "role": m.sender_type, "text": m.content} for m in msgs]}
 
-class ConversationStatusUpdate(BaseModel):
-    status: str
-
-@router.patch("/conversations/{conversation_id}/status")
-async def update_conversation_status(
+@router.post("/conversations/{conversation_id}/takeover")
+async def takeover_conversation(
     conversation_id: str,
-    payload: ConversationStatusUpdate,
     business_id: uuid.UUID = Depends(get_merchant_tenant),
     db: AsyncSession = Depends(get_db)
 ):
     from app.models.domain import Conversation
-    
-    if payload.status not in ["bot", "human"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-        
     c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
     conv = c_res.scalar_one_or_none()
     if not conv:
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=404, detail="Conversation not found")
         
-    conv.status = payload.status
+    conv.status = "human"
     db.add(conv)
     await db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "message": "Conversation is now overseen by a human agent."}
+
+@router.post("/conversations/{conversation_id}/handback")
+async def handback_conversation(
+    conversation_id: str,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation
+    c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    conv.status = "bot"
+    db.add(conv)
+    await db.commit()
+    return {"status": "ok", "message": "Conversation handed back to the AI."}
+
+class AgentReplyRequest(BaseModel):
+    message: str
+
+@router.post("/conversations/{conversation_id}/reply")
+async def agent_reply(
+    conversation_id: str,
+    request: AgentReplyRequest,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation, Message, Customer
+    c_res = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation_id, Conversation.business_id == business_id)
+    )
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    cust_res = await db.execute(select(Customer).where(Customer.id == conv.customer_id))
+    customer = cust_res.scalar_one_or_none()
+    
+    agent_msg = Message(
+        business_id=business_id,
+        conversation_id=uuid.UUID(conversation_id),
+        sender_type="agent",
+        content=request.message,
+    )
+    db.add(agent_msg)
+    
+    try:
+        if customer.platform == "whatsapp":
+            from app.api.routers.integrations import transmit_meta_graph, get_feature_config
+            w_config = await get_feature_config(db, business_id, "whatsapp")
+            if w_config.get("access_token"):
+                await transmit_meta_graph(
+                    w_config.get("phone_number_id", ""),
+                    w_config.get("access_token", ""),
+                    customer.external_id,
+                    text=request.message
+                )
+        elif customer.platform == "telegram":
+            from app.api.routers.integrations import transmit_telegram, get_feature_config
+            t_config = await get_feature_config(db, business_id, "telegram")
+            if t_config.get("bot_token"):
+                await transmit_telegram(t_config.get("bot_token"), customer.external_id, request.message)
+    except Exception as e:
+        logger.error(f"Failed to transmit agent reply to {customer.platform}: {e}")
+        from app.models.domain import SystemErrorLog
+        db.add(SystemErrorLog(business_id=business_id, error_type="agent_reply_transmit_failed", message=str(e)))
+        
+    await db.commit()
+    return {"status": "ok", "message": "Reply sent successfully", "id": str(agent_msg.id)}
+
+# ── Bot Flows (No Code Builder) ──────────────────────────────────────────────────
+
+class FlowRuleSchema(BaseModel):
+    trigger: str
+    match: str = "contains" # exact, contains, starts_with
+    response: str
+    language: Optional[str] = None
+
+class BotFlowSchema(BaseModel):
+    name: str
+    is_active: bool = True
+    priority: int = 0
+    rules: List[FlowRuleSchema]
+
+@router.get("/flows")
+async def get_bot_flows(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow)
+        .where(BotFlow.business_id == business_id)
+        .order_by(BotFlow.priority.desc(), BotFlow.created_at.desc())
+    )
+    flows = result.scalars().all()
+    # We can serialize it simply
+    return {"status": "ok", "data": [{
+        "id": str(f.id),
+        "name": f.name,
+        "is_active": f.is_active,
+        "priority": f.priority,
+        "rules": f.rules,
+        "created_at": f.created_at.isoformat()
+    } for f in flows]}
+
+@router.post("/flows")
+async def create_bot_flow(data: BotFlowSchema, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    flow = BotFlow(
+        business_id=business_id,
+        name=data.name,
+        is_active=data.is_active,
+        priority=data.priority,
+        rules=[r.model_dump() for r in data.rules]
+    )
+    db.add(flow)
+    await db.commit()
+    await db.refresh(flow)
+    return {"status": "ok", "message": "Flow created", "id": str(flow.id)}
+
+@router.put("/flows/{flow_id}")
+async def update_bot_flow(flow_id: str, data: BotFlowSchema, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow).where(BotFlow.id == flow_id, BotFlow.business_id == business_id)
+    )
+    flow = result.scalar_one_or_none()
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+        
+    flow.name = data.name
+    flow.is_active = data.is_active
+    flow.priority = data.priority
+    flow.rules = [r.model_dump() for r in data.rules]
+    
+    db.add(flow)
+    await db.commit()
+    return {"status": "ok", "message": "Flow updated"}
+
+@router.delete("/flows/{flow_id}")
+async def delete_bot_flow(flow_id: str, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow).where(BotFlow.id == flow_id, BotFlow.business_id == business_id)
+    out = []
+    for c in convos:
+        m_res = await db.execute(
+            select(Message).where(Message.conversation_id == c.id).order_by(Message.created_at.desc()).limit(1)
+        )
+        last_m = m_res.scalar_one_or_none()
+        out.append({
+            "id": str(c.id),
+            "customer_id": str(c.customer.id),
+            "customer_phone": c.customer.external_id,
+            "platform": c.customer.platform,
+            "status": c.status,
+            "lead_priority": c.lead_priority or "None",
+            "tags": list(c.customer.tags) if c.customer.tags else [],
+            "last_message": last_m.content if last_m else ""
+        })
+    return {"status": "ok", "data": out}
+
+@router.get("/conversations/{conversation_id}/messages")
+async def get_conversation_messages(conversation_id: str, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.domain import Message, Conversation
+    
+    c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
+    if not c_res.scalar_one_or_none():
+        raise HTTPException(status_code=404)
+        
+    result = await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.asc())
+    )
+    msgs = result.scalars().all()
+    return {"status": "ok", "data": [{"id": str(m.id), "role": m.sender_type, "text": m.content} for m in msgs]}
+
+@router.post("/conversations/{conversation_id}/takeover")
+async def takeover_conversation(
+    conversation_id: str,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation
+    c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    conv.status = "human"
+    db.add(conv)
+    await db.commit()
+    return {"status": "ok", "message": "Conversation is now overseen by a human agent."}
+
+@router.post("/conversations/{conversation_id}/handback")
+async def handback_conversation(
+    conversation_id: str,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation
+    c_res = await db.execute(select(Conversation).where(Conversation.id == conversation_id, Conversation.business_id == business_id))
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    conv.status = "bot"
+    db.add(conv)
+    await db.commit()
+    return {"status": "ok", "message": "Conversation handed back to the AI."}
+
+class AgentReplyRequest(BaseModel):
+    message: str
+
+@router.post("/conversations/{conversation_id}/reply")
+async def agent_reply(
+    conversation_id: str,
+    request: AgentReplyRequest,
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.domain import Conversation, Message, Customer
+    c_res = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation_id, Conversation.business_id == business_id)
+    )
+    conv = c_res.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    cust_res = await db.execute(select(Customer).where(Customer.id == conv.customer_id))
+    customer = cust_res.scalar_one_or_none()
+    
+    agent_msg = Message(
+        business_id=business_id,
+        conversation_id=uuid.UUID(conversation_id),
+        sender_type="agent",
+        content=request.message,
+    )
+    db.add(agent_msg)
+    
+    try:
+        if customer.platform == "whatsapp":
+            from app.api.routers.integrations import transmit_meta_graph, get_feature_config
+            w_config = await get_feature_config(db, business_id, "whatsapp")
+            if w_config.get("access_token"):
+                await transmit_meta_graph(
+                    w_config.get("phone_number_id", ""),
+                    w_config.get("access_token", ""),
+                    customer.external_id,
+                    text=request.message
+                )
+        elif customer.platform == "telegram":
+            from app.api.routers.integrations import transmit_telegram, get_feature_config
+            t_config = await get_feature_config(db, business_id, "telegram")
+            if t_config.get("bot_token"):
+                await transmit_telegram(t_config.get("bot_token"), customer.external_id, request.message)
+    except Exception as e:
+        logger.error(f"Failed to transmit agent reply to {customer.platform}: {e}")
+        from app.models.domain import SystemErrorLog
+        db.add(SystemErrorLog(business_id=business_id, error_type="agent_reply_transmit_failed", message=str(e)))
+        
+    await db.commit()
+    return {"status": "ok", "message": "Reply sent successfully", "id": str(agent_msg.id)}
+
+# ── Bot Flows (No Code Builder) ──────────────────────────────────────────────────
+
+class FlowRuleSchema(BaseModel):
+    trigger: str
+    match: str = "contains" # exact, contains, starts_with
+    response: str
+    language: Optional[str] = None
+
+class BotFlowSchema(BaseModel):
+    name: str
+    is_active: bool = True
+    priority: int = 0
+    rules: List[FlowRuleSchema]
+
+@router.get("/flows")
+async def get_bot_flows(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow)
+        .where(BotFlow.business_id == business_id)
+        .order_by(BotFlow.priority.desc(), BotFlow.created_at.desc())
+    )
+    flows = result.scalars().all()
+    # We can serialize it simply
+    return {"status": "ok", "data": [{
+        "id": str(f.id),
+        "name": f.name,
+        "is_active": f.is_active,
+        "priority": f.priority,
+        "rules": f.rules,
+        "created_at": f.created_at.isoformat()
+    } for f in flows]}
+
+@router.post("/flows")
+async def create_bot_flow(data: BotFlowSchema, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    flow = BotFlow(
+        business_id=business_id,
+        name=data.name,
+        is_active=data.is_active,
+        priority=data.priority,
+        rules=[r.model_dump() for r in data.rules]
+    )
+    db.add(flow)
+    await db.commit()
+    await db.refresh(flow)
+    return {"status": "ok", "message": "Flow created", "id": str(flow.id)}
+
+@router.put("/flows/{flow_id}")
+async def update_bot_flow(flow_id: str, data: BotFlowSchema, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow).where(BotFlow.id == flow_id, BotFlow.business_id == business_id)
+    )
+    flow = result.scalar_one_or_none()
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+        
+    flow.name = data.name
+    flow.is_active = data.is_active
+    flow.priority = data.priority
+    flow.rules = [r.model_dump() for r in data.rules]
+    
+    db.add(flow)
+    await db.commit()
+    return {"status": "ok", "message": "Flow updated"}
+
+@router.delete("/flows/{flow_id}")
+async def delete_bot_flow(flow_id: str, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    from app.models.bot_flow import BotFlow
+    result = await db.execute(
+        select(BotFlow).where(BotFlow.id == flow_id, BotFlow.business_id == business_id)
+    )
+    flow = result.scalar_one_or_none()
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+        
+    await db.delete(flow)
+    await db.commit()
+    return {"status": "ok", "message": "Flow deleted"}
+
+# ── RAG Knowledge Base ────────────────────────────────────────────────────────
+
+from fastapi import Form, File, UploadFile
+
+@router.post("/knowledge")
+async def upload_knowledge(
+    text: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    business_id: uuid.UUID = Depends(get_merchant_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.services.knowledge_service import ingest_text
+    
+    extracted_text = ""
+    source_name = "manual_text"
+    
+    if file:
+        source_name = file.filename
+        content = await file.read()
+        
+        # Simple extraction based on extension (for Phase 5 MVP)
+        if file.filename.endswith(".txt"):
+            extracted_text = content.decode("utf-8", errors="ignore")
+        elif file.filename.endswith(".docx"):
+            import docx2txt
+            import tempfile
+            import os
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            extracted_text = docx2txt.process(tmp_path)
+            os.remove(tmp_path)
+        elif file.filename.endswith(".pdf"):
+            import PyPDF2
+            import io
+            reader = PyPDF2.PdfReader(io.BytesIO(content))
+            extracted_text = "\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
+            
+    elif text:
+        extracted_text = text
+    else:
+        raise HTTPException(status_code=400, detail="Must provide either text or a file")
+        
+    try:
+        await ingest_text(db, business_id, extracted_text, source_name)
+    except Exception as e:
+        logger.error(f"Failed to ingest knowledge: {e}")
+        raise HTTPException(status_code=500, detail="Failed to vectorize content. Check OpenAI API key.")
+        
+    return {"status": "ok", "message": "Knowledge Base updated"}
