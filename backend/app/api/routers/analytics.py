@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from app.api.deps import get_current_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -65,8 +65,9 @@ import json
 from datetime import datetime, timedelta, timezone
 
 @router.get("/merchant/summary")
-async def merchant_summary(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
-    key = f'analytics:merchant:{business_id}'
+async def merchant_summary(request: Request, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    period = request.query_params.get('period', '30d')
+    key = f'analytics:merchant:{business_id}:{period}'
     try:
         cached = await redis_client.get(key)
         if cached: 
@@ -74,12 +75,13 @@ async def merchant_summary(business_id: uuid.UUID = Depends(get_merchant_tenant)
     except Exception:
         pass
 
-    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+    days = {'7d': 7, '30d': 30, '90d': 90}.get(period, 30)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
     
     # Total conversations
     c_res = await db.execute(
         select(Conversation.status, func.count(Conversation.id))
-        .where(Conversation.business_id == business_id, Conversation.created_at >= thirty_days_ago)
+        .where(Conversation.business_id == business_id, Conversation.created_at >= cutoff)
         .group_by(Conversation.status)
     )
     c_counts = {r[0]: r[1] for r in c_res.all()}
@@ -89,13 +91,13 @@ async def merchant_summary(business_id: uuid.UUID = Depends(get_merchant_tenant)
 
     avg_res = await db.scalar(
         select(func.avg(Message.response_time))
-        .where(Message.business_id == business_id, Message.created_at >= thirty_days_ago)
+        .where(Message.business_id == business_id, Message.created_at >= cutoff)
     )
     avg_response_time_ms = round((avg_res or 0.0) * 1000, 2)
     
     int_res = await db.execute(
         select(Message.intent, func.count(Message.id))
-        .where(Message.business_id == business_id, Message.created_at >= thirty_days_ago, Message.intent.is_not(None))
+        .where(Message.business_id == business_id, Message.created_at >= cutoff, Message.intent.is_not(None))
         .group_by(Message.intent)
         .order_by(func.count(Message.id).desc())
         .limit(5)
@@ -104,13 +106,13 @@ async def merchant_summary(business_id: uuid.UUID = Depends(get_merchant_tenant)
     
     flow_res = await db.scalar(
         select(func.count(Message.id))
-        .where(Message.business_id == business_id, Message.created_at >= thirty_days_ago, Message.intent == "flow_match")
+        .where(Message.business_id == business_id, Message.created_at >= cutoff, Message.intent == "flow_match")
     )
     flow_match_count = flow_res or 0
     
     msg_day_res = await db.execute(
         select(func.date(Message.created_at), func.count(Message.id))
-        .where(Message.business_id == business_id, Message.created_at >= thirty_days_ago)
+        .where(Message.business_id == business_id, Message.created_at >= cutoff)
         .group_by(func.date(Message.created_at))
         .order_by(func.date(Message.created_at).asc())
     )
@@ -118,7 +120,7 @@ async def merchant_summary(business_id: uuid.UUID = Depends(get_merchant_tenant)
     
     cost_res = await db.scalar(
         select(func.sum(AIUsageLog.cost))
-        .where(AIUsageLog.business_id == str(business_id), AIUsageLog.created_at >= thirty_days_ago)
+        .where(AIUsageLog.business_id == str(business_id), AIUsageLog.created_at >= cutoff)
     )
     token_cost_total = round(cost_res or 0.0, 4)
 

@@ -5,10 +5,10 @@ import { useTranslations, useLocale } from 'next-intl';
 import { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: string }) => (
-  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition">
+  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between hover:shadow-md transition">
     <div>
-      <p className="text-slate-500 text-sm mb-1 font-medium">{title}</p>
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-1 font-medium">{title}</p>
+      <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
     </div>
     <div className="text-3xl bg-blue-50 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
   </div>
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [businesses, setBusinesses] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
   const [logSearch, setLogSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'settings' | 'logs'>('businesses');
 
@@ -85,6 +86,15 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error("Failed to load metrics:", error);
+    }
+    
+    try {
+       const healthRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/health`, { withCredentials: true });
+       if (healthRes.data?.data) {
+          setSystemHealth(healthRes.data.data);
+       }
+    } catch(e) {
+       console.error("Failed to load health", e);
     }
 
     try {
@@ -363,13 +373,55 @@ export default function AdminDashboard() {
     <div className="space-y-6" dir={dir}>
       {/* Stats Section */}
       {metrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <StatCard title={tAdmin('stats.total_businesses')} value={metrics.total_businesses || 0} icon="🏢" />
           <StatCard title={tAdmin('stats.active_businesses')} value={metrics.active_businesses || 0} icon="🟢" />
           <StatCard title={tAdmin('stats.total_orders')} value={metrics.total_orders || 0} icon="📦" />
           <StatCard title={tAdmin('stats.total_tokens_used')} value={metrics.total_tokens_used || 0} icon="🪙" />
-          <StatCard title={tAdmin('stats.ai_requests_today')} value={metrics.ai_requests_today || 0} icon="🤖" />
+          <StatCard title={'MRR'} value={`$${metrics.mrr || 0}`} icon="💰" />
+          <StatCard title={'Churn Rate'} value={`${metrics.churn_rate || '0.0'}%`} icon="📉" />
         </div>
+      )}
+      
+      {/* System Health Section */}
+      {systemHealth && (
+          <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner rtl:space-x-reverse">
+             <div className="flex items-center gap-2">
+                <span className="text-xl">🖥️</span>
+                <span className="text-sm font-bold text-slate-700">CPU: <span className={systemHealth.cpu_usage > 80 ? 'text-red-500' : 'text-green-600'}>{systemHealth.cpu_usage}%</span></span>
+             </div>
+             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+             <div className="flex items-center gap-2">
+                <span className="text-xl">🛠️</span>
+                <span className="text-sm font-bold text-slate-700">RAM: <span className={systemHealth.memory_usage > 80 ? 'text-red-500' : 'text-blue-600'}>{systemHealth.memory_usage}%</span></span>
+             </div>
+             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+             <div className="flex items-center gap-2">
+                <span className="text-xl">💽</span>
+                <span className="text-sm font-bold text-slate-700">Disk: <span className={systemHealth.disk_usage > 80 ? 'text-red-500' : 'text-slate-600'}>{systemHealth.disk_usage}%</span></span>
+             </div>
+             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+             <div className="flex items-center gap-2">
+                <span className="text-xl">⚡</span>
+                <span className="text-sm font-bold text-slate-700">Redis: <span className={systemHealth.redis_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.redis_status.toUpperCase()}</span></span>
+             </div>
+             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+             <div className="flex items-center gap-2">
+                <span className="text-xl">🌐</span>
+                <span className="text-sm font-bold text-slate-700">DB: <span className={systemHealth.db_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.db_status.toUpperCase()}</span></span>
+             </div>
+          </div>
+      )}
+      
+      {/* Plans Distribution (optional visual) */}
+      {metrics?.plan_distribution && (
+         <div className="flex gap-4">
+            {Object.keys(metrics.plan_distribution).map(plan => (
+               <div key={plan} className="bg-white py-1 px-3 border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm capitalize">
+                  {plan}: {metrics.plan_distribution[plan]}
+               </div>
+            ))}
+         </div>
       )}
 
       {/* Tabs */}
@@ -388,7 +440,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8 min-h-[500px] relative">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 md:p-8 min-h-[500px] relative">
         
         {/* Businesses Tab */}
         {activeTab === 'businesses' && (
@@ -828,7 +880,7 @@ export default function AdminDashboard() {
         {activeTab === 'logs' && (
           <div className="animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">{tAdmin('logs.title') || 'Global Error Logs'}</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{tAdmin('logs.title') || 'Global Error Logs'}</h2>
             </div>
             <div className="bg-white border flex items-center p-2 rounded-xl mb-4 max-w-sm shadow-sm ring-1 ring-slate-100">
                 <span className="text-xl mr-2 ml-2">🔍</span>

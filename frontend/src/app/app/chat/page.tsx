@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useTranslations, useLocale } from 'next-intl';
+import { useNotificationStore } from '@/store/useNotificationStore';
 import toast from 'react-hot-toast';
+import { ConversationRowSkeleton, TypingIndicator } from '@/components/Skeleton';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<{role: 'user'|'ai'|'assistant', text: string}[]>([]);
@@ -13,6 +15,7 @@ export default function ChatPage() {
   
   // Inbox State
   const [conversations, setConversations] = useState<any[]>([]);
+  const [loadingConvos, setLoadingConvos] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
 
   // Order modal state
@@ -27,6 +30,34 @@ export default function ChatPage() {
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
   useEffect(() => {
+    let es: EventSource;
+    if (typeof window !== 'undefined') {
+        es = new EventSource(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/stream`, { withCredentials: true });
+        es.onmessage = (e) => {
+            try {
+                const payload = JSON.parse(e.data);
+                if (payload.type === 'new_message') {
+                    if (selectedConversation === payload.conversation_id) {
+                        // Refresh current chat
+                        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations/${selectedConversation}/messages`, { withCredentials: true })
+                         .then(res => setMessages(res.data.data || []));
+                    } else {
+                        useNotificationStore.getState().addNotification({
+                            message: `New message from ${payload.customer_phone || 'a customer'}`,
+                            type: 'info'
+                        });
+                        fetchConversations();
+                    }
+                }
+            } catch(e) {}
+        };
+    }
+    return () => {
+        if(es) es.close();
+    };
+  }, [selectedConversation]);
+
+  useEffect(() => {
     axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products`, { withCredentials: true })
       .then(res => setProducts(res.data.data || [])).catch(console.error);
       
@@ -34,8 +65,11 @@ export default function ChatPage() {
   }, []);
 
   const fetchConversations = () => {
+     setLoadingConvos(true);
      axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/conversations`, { withCredentials: true })
-      .then(res => setConversations(res.data.data || [])).catch(console.error);
+      .then(res => setConversations(res.data.data || []))
+      .catch(console.error)
+      .finally(() => setLoadingConvos(false));
   };
 
   const loadConversationMessages = (id: string) => {
@@ -271,7 +305,7 @@ export default function ChatPage() {
                <p className="text-xs text-slate-500 mt-1 truncate">{t('simulator_desc')}</p>
             </button>
             
-            {conversations.map(c => (
+            {loadingConvos ? Array.from({length: 4}).map((_,i) => <ConversationRowSkeleton key={i} />) : conversations.map(c => (
                 <button 
                   key={c.id}
                   onClick={() => loadConversationMessages(c.id)}
@@ -364,13 +398,7 @@ export default function ChatPage() {
               </div>
             ))}
             
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-white border text-slate-500 p-3 rounded-2xl rounded-bl-none shadow-sm text-sm italic">
-                  {t('typing')}
-                </div>
-              </div>
-            )}
+            {isTyping && <TypingIndicator />}
           </div>
 
           <div className="bg-white border-t p-4 flex flex-col gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] relative z-20" dir={dir}>

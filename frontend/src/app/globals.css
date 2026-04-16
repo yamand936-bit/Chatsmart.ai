@@ -9,9 +9,7 @@
   input[type="number"],
   select,
   textarea {
-    @apply bg-white text-slate-900 border-slate-300;
-    color: #0f172a !important;
-    background-color: #ffffff !important;
+    @apply bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600;
   }
 }
 

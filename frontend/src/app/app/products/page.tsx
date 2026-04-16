@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useTranslations } from 'next-intl';
 import toast from 'react-hot-toast';
+import { ProductCardSkeleton } from '@/components/Skeleton';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name: '', description: '', price: 0, image_url: '' });
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editFormData, setEditFormData] = useState({ name: '', description: '', price: 0, image_url: '', is_active: true });
@@ -35,12 +37,15 @@ export default function ProductsPage() {
   }, []);
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/products`, { withCredentials: true });
         setProducts(res.data.data || []);
     } catch (err) {
         console.error(err);
         toast.error('Failed to load products');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -246,7 +251,11 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {products.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {Array.from({length: 6}).map((_,i) => <ProductCardSkeleton key={i} />)}
+        </div>
+      ) : products.length === 0 ? (
         <div className="bg-white rounded-xl shadow p-12 text-center border-2 border-dashed border-blue-100 flex flex-col items-center justify-center">
             <div className="w-16 h-16 bg-blue-50 text-[var(--primary-color,#2563eb)] rounded-full flex items-center justify-center mb-4">
                <svg fill="currentColor" viewBox="0 0 20 20" className="w-8 h-8"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>

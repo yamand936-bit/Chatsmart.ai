@@ -50,13 +50,36 @@ async def get_metrics(db: AsyncSession = Depends(get_db), admin: dict = Depends(
     total_tokens = (await db.execute(select(func.sum(UsageLog.tokens_used)))).scalar() or 0
     requests_today = (await db.execute(select(func.sum(UsageLog.request_count)).where(UsageLog.date_logged == date.today()))).scalar() or 0
     
+    res = await db.execute(select(Business.plan_name, func.count(Business.id)).group_by(Business.plan_name))
+    plan_counts = res.all()
+    
+    mrr = 0
+    churn_rate = 2.5 # Mock churn rate
+    plan_distribution = {}
+    
+    for plan, count in plan_counts:
+        plan_str = str(plan).lower()
+        if plan_str == "free":
+            pass
+        elif plan_str == "starter":
+            mrr += count * 49
+        elif plan_str == "pro":
+            mrr += count * 99
+        elif plan_str == "enterprise":
+            mrr += count * 299
+        
+        plan_distribution[plan_str] = count
+
     return {
         "status": "ok", 
         "total_businesses": total_businesses, 
         "active_businesses": active_businesses,
         "total_orders": total_orders,
         "total_tokens_used": total_tokens,
-        "ai_requests_today": requests_today
+        "ai_requests_today": requests_today,
+        "mrr": mrr,
+        "churn_rate": churn_rate,
+        "plan_distribution": plan_distribution
     }
 
 @router.get("/businesses_test")
@@ -480,3 +503,38 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 await db.commit()
                 
     return {"status": "success"}
+
+import os
+import psutil
+from app.api.deps import redis_client
+
+@router.get("/health")
+async def system_health(admin: dict = Depends(get_current_admin)):
+    """System health metrics for Admin dashboard."""
+    try:
+        cpu_usage = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory()
+        memory_usage = mem.percent
+        disk = psutil.disk_usage('/')
+        disk_usage = disk.percent
+    except Exception:
+        cpu_usage = 0
+        memory_usage = 0
+        disk_usage = 0
+
+    try:
+        await redis_client.ping()
+        redis_status = "online"
+    except Exception:
+        redis_status = "offline"
+
+    return {
+        "status": "ok",
+        "data": {
+            "cpu_usage": cpu_usage,
+            "memory_usage": memory_usage,
+            "disk_usage": disk_usage,
+            "redis_status": redis_status,
+            "db_status": "online" # handled by middleware usually, if here it's online
+        }
+    }

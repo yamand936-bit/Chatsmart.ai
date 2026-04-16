@@ -330,7 +330,11 @@
     "avgResponseTime": "متوسط وقت الرد",
     "tokenCost": "تكلفة التوكنز (٣٠ يوم)",
     "topIntents": "أبرز استفسارات الذكاء الاصطناعي",
-    "messagesOverTime": "الرسائل بمرور الوقت"
+    "messagesOverTime": "الرسائل بمرور الوقت",
+    "roi": "عائد الاستثمار (AI)",
+    "period_7d": "7 أيام",
+    "period_30d": "30 يومًا",
+    "period_90d": "90 يومًا"
   },
   "campaigns": {
     "title": "الحملات التسويقية الذكية",

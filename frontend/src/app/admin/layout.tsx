@@ -3,7 +3,8 @@ import RoleGuard from '@/components/RoleGuard';
 import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
-import AdminAlerts from '@/components/AdminAlerts';
+import AdminAlertsPoller from '@/components/AdminAlerts';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useTranslations } from 'next-intl';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="bg-white shadow px-6 py-4 flex justify-between items-center text-slate-800 relative z-20">
           <h1 className="font-bold text-xl text-blue-600">{t('title')}</h1>
           <nav className="flex items-center gap-6">
-            <AdminAlerts />
+            <AdminAlertsPoller />
+            <NotificationBell />
             <LanguageSwitcher />
             <LogoutButton />
           </nav>

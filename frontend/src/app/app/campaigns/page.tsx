@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'react-hot-toast';
 import { Send, Tag as TagIcon, Sparkles } from 'lucide-react';
@@ -11,6 +11,17 @@ export default function CampaignsPage() {
   const [tag, setTag] = useState('');
   const [instructions, setInstructions] = useState('');
   const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [audienceFilter, setAudienceFilter] = useState('all');
+
+  useEffect(() => {
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/templates`, { withCredentials: true })
+      .then(res => {
+         if (res.data?.data) setTemplates(res.data.data);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleLaunchCampaign = async () => {
     if (!tag.trim() || !instructions.trim()) {
@@ -22,7 +33,9 @@ export default function CampaignsPage() {
     try {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/merchant/campaigns/send`, {
         tag: tag,
-        instructions: instructions
+        instructions: instructions,
+        template_id: selectedTemplate || null,
+        audience_filter: audienceFilter
       }, { withCredentials: true });
       
       if (response.data?.status === 'success') {
@@ -59,6 +72,26 @@ export default function CampaignsPage() {
           </p>
 
           <div className="space-y-6 max-w-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                 <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">Audience Filter</label>
+                 <select value={audienceFilter} onChange={e => setAudienceFilter(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium bg-white">
+                    <option value="all">All Registered Customers</option>
+                    <option value="active_30d">Active (AI chat in last 30d)</option>
+                    <option value="no_orders">No Orders Yet</option>
+                 </select>
+              </div>
+              <div>
+                 <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">WhatsApp Template</label>
+                 <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium bg-white">
+                    <option value="">-- AI Freeform (Not WhatsApp) --</option>
+                    {templates.map(t => (
+                       <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
+                    ))}
+                 </select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                 <TagIcon className="w-4 h-4 text-slate-400" />

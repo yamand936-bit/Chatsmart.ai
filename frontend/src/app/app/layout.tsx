@@ -4,6 +4,7 @@ import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from '@/components/NotificationBell';
 import MerchantStatsBar from '@/components/MerchantStatsBar';
 import { useTranslations } from 'next-intl';
 import { Toaster, toast } from 'react-hot-toast';
@@ -68,44 +69,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [pathname, router]);
 
-  useEffect(() => {
-     // Mock New Message Notification (Simulate a live WhatsApp message after 3 seconds)
-     const timer = setTimeout(() => {
-        toast.custom((tCustom) => (
-          <div className={`${tCustom.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 relative`} style={{ direction: 'rtl' }}>
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <span className="text-3xl">💬</span>
-                </div>
-                <div className="mr-3 flex-1">
-                  <p className="text-sm font-bold text-slate-900">رسالة جديدة من WhatsApp!</p>
-                  <p className="mt-1 text-sm text-slate-500">عميل جديد يستفسر عن المبيعات.</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex border-r border-slate-200">
-              <Link
-                href="/app/chat"
-                onClick={() => toast.dismiss(tCustom.id)}
-                className="w-full border border-transparent rounded-none rounded-l-lg p-4 flex items-center justify-center text-sm font-bold text-green-600 hover:text-green-500 focus:outline-none"
-              >
-                عرض
-              </Link>
-            </div>
-            <button onClick={() => toast.dismiss(tCustom.id)} className="absolute top-1 left-1 text-slate-400 hover:text-slate-600">×</button>
-          </div>
-        ), { duration: 6000, position: 'bottom-right' });
-     }, 3000);
 
-     return () => clearTimeout(timer);
-  }, []);
 
   return (
     <RoleGuard requiredRole="merchant">
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
         <Toaster position="top-center" reverseOrder={false} />
-        <header className="bg-[var(--primary-color,#1e293b)] shadow px-6 py-4 flex justify-between items-center text-white relative z-30">
+        <header className="bg-[var(--primary-color,#1e293b)] dark:bg-slate-950 shadow px-6 py-4 flex justify-between items-center text-white relative z-30">
           <div className="flex items-center gap-3">
              <h1 className="font-bold text-xl text-white print-hidden">{t('title')}</h1>
              <div className="hidden md:flex items-center gap-3 print-hidden">
@@ -124,10 +94,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link href="/app/calendar" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('calendar', { fallback: 'التقويم المشروط' })}</Link>
             )}
             <Link href="/app/chat" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('chat')}</Link>
+            <Link href="/app/kanban" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{'CRM Funnel'}</Link>
             <Link href="/app/campaigns" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('campaigns', { fallback: 'الحملات الذكية' })}</Link>
             <Link href="/app/settings" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('settings', { fallback: 'الإعدادات' })}</Link>
             <div className="border-l h-6 mx-1 md:mx-2 border-slate-300"></div>
             <div className="flex items-center gap-2">
+               <NotificationBell />
                <ThemeToggle />
                <LanguageSwitcher />
                <LogoutButton />
