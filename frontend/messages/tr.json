@@ -244,7 +244,12 @@
     "inbox_desc": "Öncelikler YZ ile filtrelendi",
     "simulator_title": "Simülatör",
     "simulator_badge": "Canlı",
-    "simulator_desc": "YZ yanıtlarını burada test edin"
+    "simulator_desc": "YZ yanıtlarını burada test edin",
+    "takeOver": "Devral (AI Duraklat)",
+    "handBackToBot": "AI'ya Geri Ver",
+    "sendAsAgent": "Temsilci Olarak Gönder",
+    "humanStatus": "İnsan",
+    "botStatus": "AI"
   },
   "system": {
     "title": "Sistem Ayarları",

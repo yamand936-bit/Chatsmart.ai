@@ -340,6 +340,8 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
             external_id=user_id, content=text_content,
             media_url=media_url, media_b64=media_b64
         )
+        if intent == "human_handoff_active":
+            return {"status": "ok"}
         if ai_response or smart_cards:
             await transmit_telegram(config.get("bot_token", ""), chat_id, ai_response or "", smart_cards=smart_cards)
         return {"status": "success"}
@@ -493,6 +495,9 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
                         media_url=media_url, media_b64=media_b64
                     )
                     
+                    if intent == "human_handoff_active":
+                        return {"status": "ok"}
+                    
                     if ai_response or smart_cards:
                         displayText = ai_response or ""
                                 
@@ -623,6 +628,9 @@ async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db
                     external_id=sender_id, content=text_content,
                     media_url=media_url, media_b64=media_b64
                 )
+                
+                if intent == "human_handoff_active":
+                    return {"status": "ok"}
                 
                 if ai_response or smart_cards:
                     # Instagram uses slightly different send payload, handled simply here 

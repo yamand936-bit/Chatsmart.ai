@@ -1,0 +1,1239 @@
+ChatSmart AI — Development Command Plan for AI Agent  |  April 2026
+
+ChatSmart AI
+
+AI Agent Development Command Plan
+
+Practical phase-by-phase commands to fix every identified problem and build the missing features — April 2026
+
+How to use this document: Each section contains ready-to-paste commands for your AI agent (Antigravity). Work through the phases in order. Phases 1–2 fix critical bugs and security issues. Phases 3–5 build the missing features that close the competitive gaps. Phases 6–8 are growth and scaling improvements.
+
+
+
+Phase 1: Security & Critical Bug Fixes  ● Do this BEFORE deployment
+
+
+
+1.1 — Fix the insecure JWT default in docker-compose.yml
+
+The docker-compose.yml has JWT_SECRET:-production_ready_secret_key_123 as a fallback. If .env is missing, the app starts with a known-public secret. Fix it to crash instead.
+
+
+
+Command for agent
+
+In docker-compose.yml, find the line:
+
+  - JWT_SECRET=${JWT_SECRET:-production_ready_secret_key_123}
+
+Replace it with:
+
+  - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env - do not use a default}
+
+This uses bash :? syntax which makes Docker Compose exit with an error if the variable is unset, preventing the app from starting with a weak secret.
+
+
+
+1.2 — Fix the .gitignore (corrupted UTF-16, not ignoring __pycache__)
+
+The .gitignore file is UTF-16 encoded and broken — the project has hundreds of .pyc compiled bytecode files committed to git. Recreate the .gitignore properly.
+
+
+
+Command for agent
+
+Delete the existing .gitignore file and create a new one at the project root with UTF-8 encoding containing:
+
+
+
+.env
+
+__pycache__/
+
+*.py[cod]
+
+*.pyo
+
+.Python
+
+*.egg-info/
+
+dist/
+
+build/
+
+.venv/
+
+node_modules/
+
+.next/
+
+*.log
+
+postgres_data/
+
+redis_data/
+
+
+
+Then run this command in the repo root to remove already-tracked pyc files:
+
+  git rm -r --cached backend/**/__pycache__/ 2>/dev/null || true
+
+  git rm -r --cached '**/*.pyc' 2>/dev/null || true
+
+
+
+1.3 — Add rate limiting to the /api/auth/login endpoint
+
+The auth router already has a check_rate_limit() helper function, but it is not wired to the login endpoint correctly. The current implementation has a logic bug: it uses SET NX EX which means the TTL is only set on first creation — if you hit the limit and wait, the counter never resets. Fix the sliding window logic.
+
+
+
+Command for agent
+
+In backend/app/api/routers/auth.py, replace the check_rate_limit function with:
+
+
+
+async def check_rate_limit(key: str, limit: int, window: int):
+
+    pipe = redis_client.pipeline()
+
+    await pipe.incr(key)
+
+    await pipe.expire(key, window)
+
+    results = await pipe.execute()
+
+    count = results[0]
+
+    if count > limit:
+
+        raise HTTPException(
+
+            status_code=429,
+
+            detail=f'Too many attempts. Try again in {window // 60} minutes.'
+
+        )
+
+
+
+This uses a pipeline so both INCR and EXPIRE are atomic. The expire is set on every call, making it a true sliding window. The current code only sets the TTL on first creation (NX), so a burst that hits the limit can never reset.
+
+
+
+1.4 — Add IS_PRODUCTION=true to the production .env template
+
+The config.py has IS_PRODUCTION: bool = False. When false, cookies are not set with Secure flag, allowing them to be sent over HTTP. In production this exposes JWTs to interception.
+
+
+
+Command for agent
+
+In .env.example, add these two lines under the Security section:
+
+
+
+# Set to true on your live server — enforces Secure cookie flag and HTTPS-only behaviour
+
+IS_PRODUCTION=false
+
+
+
+In docker-compose.yml, in the api service environment block, add:
+
+  - IS_PRODUCTION=${IS_PRODUCTION:-false}
+
+
+
+Document in README that IS_PRODUCTION must be set to true on the Contabo VPS.
+
+
+
+Phase 2: Campaign System — Fix WhatsApp Template Compliance  ● Critical for production campaigns
+
+
+
+Your campaign system currently sends freeform messages to customers. WhatsApp's Business API (since July 2025) requires all business-initiated messages outside the 24-hour customer service window to use pre-approved Message Templates (HSMs). Without this, your bulk campaigns will fail with a 131026 or 132000 error from Meta in production.
+
+
+
+2.1 — Add a TemplateMessage model to the database
+
+Command for agent
+
+Create a new file backend/app/models/template_message.py with this content:
+
+
+
+from sqlalchemy import String, Boolean, JSON, ForeignKey
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.db.base import BaseModel
+
+import uuid
+
+
+
+class TemplateMessage(BaseModel):
+
+    __tablename__ = 'template_messages'
+
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('businesses.id', ondelete='CASCADE'), index=True)
+
+    name: Mapped[str] = mapped_column(String(255))         # e.g. 'promo_ramadan_v1'
+
+    language: Mapped[str] = mapped_column(String(10), default='ar')
+
+    category: Mapped[str] = mapped_column(String(50), default='MARKETING')
+
+    status: Mapped[str] = mapped_column(String(50), default='PENDING')  # PENDING, APPROVED, REJECTED
+
+    components: Mapped[dict] = mapped_column(JSON, default=dict)  # WhatsApp template components JSON
+
+    meta_template_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+
+Add TemplateMessage to backend/app/models/__init__.py
+
+Create an Alembic migration: alembic revision --autogenerate -m 'add_template_messages'
+
+
+
+2.2 — Add template CRUD endpoints to the merchant router
+
+Command for agent
+
+In backend/app/api/routers/merchant.py, add these endpoints:
+
+
+
+POST /api/merchant/templates
+
+  Body: { name, language, category, components }
+
+  Creates a new TemplateMessage record with status='PENDING'
+
+  Returns the created template with its id
+
+
+
+GET /api/merchant/templates
+
+  Returns all TemplateMessage records for the current business_id
+
+
+
+DELETE /api/merchant/templates/{template_id}
+
+  Deletes a template by id, scoped to business_id
+
+
+
+PATCH /api/merchant/templates/{template_id}/status
+
+  Body: { status: 'APPROVED' | 'REJECTED' }
+
+  Admin-only endpoint to update approval status after manual Meta review
+
+
+
+2.3 — Update the campaign send logic to use approved templates
+
+Command for agent
+
+In backend/app/api/routers/campaigns.py, update the CampaignRequest schema to:
+
+
+
+class CampaignRequest(BaseModel):
+
+    tag: str
+
+    instructions: str
+
+    template_id: Optional[str] = None   # if set, use approved HSM template
+
+    use_freeform: bool = False           # only true if within 24h window
+
+
+
+In the send_smart_campaign endpoint, before queuing, add this validation:
+
+
+
+  if not request.use_freeform:
+
+      if not request.template_id:
+
+          raise HTTPException(status_code=400, detail='template_id is required for outbound campaigns. Freeform messages are only allowed within the 24-hour customer service window.')
+
+      template = await db.get(TemplateMessage, uuid.UUID(request.template_id))
+
+      if not template or template.business_id != business_id:
+
+          raise HTTPException(status_code=404, detail='Template not found')
+
+      if template.status != 'APPROVED':
+
+          raise HTTPException(status_code=400, detail='Template is not approved by Meta yet. Status: ' + template.status)
+
+
+
+This prevents the campaign from running with unapproved templates, protecting your WhatsApp account from policy violations.
+
+
+
+Phase 3: Human Agent Handoff — Shared Inbox  ● Required for clinic/enterprise clients
+
+
+
+This is the feature that will unlock clinic, salon, and enterprise clients. The Conversation model already has a status field ('bot' | 'human') and the Message model has sender_type ('user' | 'bot' | 'agent'). The database is ready — you only need the API endpoints and frontend UI.
+
+
+
+3.1 — Add conversation takeover endpoints to the merchant router
+
+Command for agent
+
+In backend/app/api/routers/merchant.py, add these three endpoints:
+
+
+
+PATCH /api/merchant/conversations/{conversation_id}/takeover
+
+  Updates conversation.status from 'bot' to 'human'
+
+  Sets conversation.lead_priority to 'Hot' if not already set
+
+  Returns: { status: 'ok', message: 'You are now handling this conversation' }
+
+
+
+PATCH /api/merchant/conversations/{conversation_id}/handback
+
+  Updates conversation.status from 'human' back to 'bot'
+
+  Returns: { status: 'ok', message: 'Bot resumed' }
+
+
+
+POST /api/merchant/conversations/{conversation_id}/reply
+
+  Body: { content: str }
+
+  Creates a new Message with sender_type='agent' in the given conversation
+
+  Looks up the customer's platform and external_id from the conversation
+
+  Calls the appropriate integration send function (WhatsApp/Telegram) to deliver the message
+
+  Returns: { status: 'ok', message_id: str }
+
+
+
+All three endpoints must be scoped to business_id (verify the conversation belongs to the merchant).
+
+
+
+3.2 — Update the chat_core pipeline to respect human status
+
+Command for agent
+
+In backend/app/services/chat_core.py, find the section where the AI response is generated.
+
+Before calling the AI engine, add this check:
+
+
+
+  # Skip AI if a human agent has taken over this conversation
+
+  if conversation.status == 'human':
+
+      return ('', 'human_handled', str(user_msg.id), str(conversation.id), [])
+
+
+
+This ensures that when an agent has taken over, incoming messages are stored in the DB (for agent to read) but no AI reply is sent.
+
+The empty string response means the webhook handler must NOT send any WhatsApp/Telegram reply when the return value is 'human_handled'.
+
+
+
+In backend/app/api/routers/integrations.py, in the WhatsApp and Telegram webhook handlers,
+
+after calling process_chat_core, add:
+
+
+
+  if intent == 'human_handled':
+
+      # Message stored for agent but no auto-reply sent
+
+      return {}
+
+
+
+3.3 — Add human inbox UI to the frontend chat page
+
+Command for agent
+
+In frontend/src/app/app/chat/page.tsx, add the following to the conversation list items:
+
+
+
+1. Show a badge on each conversation indicating status: 'BOT' (green) or 'HUMAN' (amber)
+
+   Read from conversation.status field returned by GET /api/merchant/conversations
+
+
+
+2. Add a 'Take Over' button that appears when conversation.status === 'bot':
+
+   On click: call PATCH /api/merchant/conversations/{id}/takeover
+
+   After success: update the conversation status in local state to 'human'
+
+   Show a toast: 'You are now handling this conversation'
+
+
+
+3. Add a 'Hand Back to Bot' button that appears when conversation.status === 'human':
+
+   On click: call PATCH /api/merchant/conversations/{id}/handback
+
+   After success: update status back to 'bot' in local state
+
+
+
+4. When status === 'human', show a message input and 'Send as Agent' button:
+
+   On send: call POST /api/merchant/conversations/{id}/reply with the message content
+
+   Append the sent message locally with role='assistant' (or a new 'agent' role with distinct styling)
+
+
+
+Use Tailwind classes matching the existing chat page styling.
+
+All text must use the t() translation function — add keys 'takeOver', 'handBackToBot', 'sendAsAgent', 'humanStatus', 'botStatus' to all three locale JSON files.
+
+
+
+Phase 4: No-Code Bot Flow Builder — Minimal MVP  ● Biggest competitive gap
+
+
+
+A full drag-and-drop builder is complex, but a minimal keyword-trigger system covers 80% of real-world use cases and can be built quickly. The goal is: merchant defines rules (trigger keyword → response), no code required.
+
+
+
+4.1 — Add a BotFlow model to the database
+
+Command for agent
+
+Create backend/app/models/bot_flow.py:
+
+
+
+from sqlalchemy import String, Boolean, JSON, ForeignKey
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.db.base import BaseModel
+
+import uuid
+
+
+
+class BotFlow(BaseModel):
+
+    __tablename__ = 'bot_flows'
+
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('businesses.id', ondelete='CASCADE'), index=True)
+
+    name: Mapped[str] = mapped_column(String(255))
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # JSON array of rule objects:
+
+    # [{ 'trigger': 'price', 'match': 'contains', 'response': 'Our prices start at...', 'language': 'ar' }]
+
+    rules: Mapped[list] = mapped_column(JSON, default=list)
+
+    priority: Mapped[int] = mapped_column(default=0)  # higher = checked first
+
+
+
+Add BotFlow to models/__init__.py
+
+Create Alembic migration: alembic revision --autogenerate -m 'add_bot_flows'
+
+
+
+4.2 — Add BotFlow CRUD endpoints
+
+Command for agent
+
+In backend/app/api/routers/merchant.py, add:
+
+
+
+GET    /api/merchant/flows          — list all BotFlow records for this business
+
+POST   /api/merchant/flows          — create a new BotFlow
+
+PUT    /api/merchant/flows/{id}     — update rules/name/priority/is_active
+
+DELETE /api/merchant/flows/{id}     — delete a flow
+
+
+
+Request body for POST/PUT:
+
+  { name: str, is_active: bool, priority: int, rules: list[FlowRule] }
+
+
+
+FlowRule schema:
+
+  { trigger: str, match: 'exact'|'contains'|'starts_with', response: str, language: str|None }
+
+
+
+4.3 — Integrate flow matching into the chat pipeline
+
+Command for agent
+
+In backend/app/services/chat_core.py, after fetching the business but BEFORE calling the AI engine, add a flow-matching step:
+
+
+
+  # Check bot flows first (keyword rules override AI)
+
+  from app.models.bot_flow import BotFlow
+
+  from sqlalchemy.future import select
+
+  flows_res = await db.execute(
+
+      select(BotFlow).where(
+
+          BotFlow.business_id == business_id,
+
+          BotFlow.is_active == True
+
+      ).order_by(BotFlow.priority.desc())
+
+  )
+
+  active_flows = flows_res.scalars().all()
+
+  msg_lower = content.strip().lower()
+
+  for flow in active_flows:
+
+      for rule in (flow.rules or []):
+
+          trigger = rule.get('trigger', '').lower()
+
+          match = rule.get('match', 'contains')
+
+          if match == 'exact' and msg_lower == trigger:
+
+              return (rule['response'], 'flow_match', ..., ..., [])
+
+          elif match == 'contains' and trigger in msg_lower:
+
+              return (rule['response'], 'flow_match', ..., ..., [])
+
+          elif match == 'starts_with' and msg_lower.startswith(trigger):
+
+              return (rule['response'], 'flow_match', ..., ..., [])
+
+
+
+Replace the ... placeholders with the proper message/conversation creation logic that already exists in the function for AI responses — the flow match response should be saved to the DB as a bot message just like an AI response.
+
+
+
+4.4 — Add flow builder UI to the frontend settings page
+
+Command for agent
+
+In frontend/src/app/app/settings/page.tsx, add a new 'Bot Flows' section with:
+
+
+
+1. A list of existing flows (fetched from GET /api/merchant/flows), each showing name, status badge, and rule count
+
+
+
+2. A 'New Flow' button that opens an inline form with:
+
+   - Flow name (text input)
+
+   - Active toggle
+
+   - A dynamic list of rules where each rule has:
+
+     * Trigger keyword (text input)
+
+     * Match type (dropdown: contains / exact / starts_with)
+
+     * Response text (textarea)
+
+     * Add Rule / Remove Rule buttons
+
+   - Save Flow button (calls POST /api/merchant/flows)
+
+
+
+3. Each existing flow row has Edit and Delete buttons
+
+
+
+All labels must use t() with new i18n keys: 'botFlows', 'newFlow', 'flowName', 'flowRules', 'triggerKeyword', 'matchType', 'responseText', 'addRule', 'saveFlow'.
+
+Add these keys to frontend/messages/en.json, ar.json, and tr.json.
+
+
+
+Phase 5: RAG Knowledge Base — Replace Text Field with Vector Search  ● High impact on AI quality
+
+
+
+The current knowledge_base is a plain String field on the Business model — it is injected raw into the LLM system prompt. This breaks for anything over ~2000 characters. Replace it with a chunked vector search pipeline using pgvector (already in PostgreSQL) so merchants can upload documents, URLs, and FAQs.
+
+
+
+5.1 — Enable pgvector and create a KnowledgeChunk model
+
+Command for agent
+
+Run in the PostgreSQL container:
+
+  CREATE EXTENSION IF NOT EXISTS vector;
+
+
+
+Create backend/app/models/knowledge_chunk.py:
+
+
+
+from sqlalchemy import String, Text, ForeignKey, Integer
+
+from sqlalchemy.orm import Mapped, mapped_column
+
+from sqlalchemy.dialects.postgresql import UUID
+
+from pgvector.sqlalchemy import Vector
+
+from app.db.base import BaseModel
+
+import uuid
+
+
+
+class KnowledgeChunk(BaseModel):
+
+    __tablename__ = 'knowledge_chunks'
+
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('businesses.id', ondelete='CASCADE'), index=True)
+
+    source: Mapped[str] = mapped_column(String(500))   # filename or URL
+
+    content: Mapped[str] = mapped_column(Text)
+
+    embedding: Mapped[list] = mapped_column(Vector(1536))  # OpenAI ada-002 dimensions
+
+
+
+Add to models/__init__.py
+
+Install: pip install pgvector
+
+Create migration: alembic revision --autogenerate -m 'add_knowledge_chunks_pgvector'
+
+Add HNSW index in the migration:
+
+  op.execute('CREATE INDEX ON knowledge_chunks USING hnsw (embedding vector_cosine_ops)')
+
+
+
+5.2 — Create a knowledge base ingestion service
+
+Command for agent
+
+Create backend/app/services/knowledge_service.py with:
+
+
+
+import openai, textwrap
+
+from app.models.knowledge_chunk import KnowledgeChunk
+
+from app.core.config import settings
+
+
+
+async def ingest_text(db, business_id, text: str, source: str):
+
+    # Delete old chunks for this source
+
+    await db.execute(delete(KnowledgeChunk).where(
+
+        KnowledgeChunk.business_id == business_id,
+
+        KnowledgeChunk.source == source
+
+    ))
+
+    # Chunk into ~400-word pieces with 50-word overlap
+
+    words = text.split()
+
+    chunks = [' '.join(words[i:i+400]) for i in range(0, len(words), 350)]
+
+    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+    for chunk in chunks:
+
+        resp = await client.embeddings.create(input=chunk, model='text-embedding-ada-002')
+
+        embedding = resp.data[0].embedding
+
+        db.add(KnowledgeChunk(business_id=business_id, source=source, content=chunk, embedding=embedding))
+
+    await db.commit()
+
+
+
+async def search_knowledge(db, business_id, query: str, top_k=5) -> str:
+
+    client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+    resp = await client.embeddings.create(input=query, model='text-embedding-ada-002')
+
+    qvec = resp.data[0].embedding
+
+    results = await db.execute(
+
+        select(KnowledgeChunk.content)
+
+        .where(KnowledgeChunk.business_id == business_id)
+
+        .order_by(KnowledgeChunk.embedding.cosine_distance(qvec))
+
+        .limit(top_k)
+
+    )
+
+    chunks = results.scalars().all()
+
+    return '\n\n'.join(chunks) if chunks else ''
+
+
+
+5.3 — Wire the vector search into the AI engine
+
+Command for agent
+
+In backend/app/services/ai_engine.py, in the generate_system_prompt() method,
+
+replace the line that reads self.knowledge_base with a call to search_knowledge:
+
+
+
+  from app.services.knowledge_service import search_knowledge
+
+
+
+  # Use vector search instead of raw text field
+
+  if user_message:  # user_message passed as a new parameter
+
+      knowledge_context = await search_knowledge(db, self.business_id, user_message, top_k=5)
+
+  else:
+
+      knowledge_context = self.knowledge_base or ''
+
+
+
+Pass knowledge_context into DomainPromptFactory.generate_prompt() as the knowledge_base parameter.
+
+
+
+Also add an upload endpoint:
+
+POST /api/merchant/knowledge
+
+  Accepts: multipart form with file (.txt, .pdf, .docx) OR a text field with raw text OR a URL
+
+  Calls ingest_text() with the extracted content
+
+  Returns: { status: 'ok', chunks_created: N }
+
+
+
+Phase 6: Per-Merchant Analytics Dashboard  ● Reduces merchant churn
+
+
+
+6.1 — Create an analytics aggregation endpoint
+
+Command for agent
+
+In backend/app/api/routers/analytics.py, add a merchant-scoped endpoint:
+
+
+
+GET /api/analytics/merchant/summary
+
+  Returns for the current business_id (last 30 days):
+
+  {
+
+    total_conversations: int,
+
+    bot_handled: int,          // conversations where status stayed 'bot'
+
+    human_handled: int,        // conversations that were taken over by agent
+
+    avg_response_time_ms: float,  // average of Message.response_time * 1000
+
+    top_intents: list[{intent, count}],  // top 5 from Message.intent
+
+    messages_per_day: list[{date, count}],  // for sparkline chart
+
+    token_cost_total: float,   // from AIUsageLog
+
+    flow_match_count: int      // messages where intent == 'flow_match'
+
+  }
+
+
+
+Use SQLAlchemy async queries with func.count(), func.avg(), and group_by().
+
+Cache the result in Redis for 5 minutes per business_id to avoid heavy DB queries on every page load:
+
+  key = f'analytics:merchant:{business_id}'
+
+  cached = await redis_client.get(key)
+
+  if cached: return json.loads(cached)
+
+  ...compute...
+
+  await redis_client.setex(key, 300, json.dumps(result))
+
+
+
+6.2 — Add the analytics dashboard to the frontend
+
+Command for agent
+
+In frontend/src/app/app/page.tsx (the merchant home/dashboard page):
+
+
+
+1. Fetch GET /api/analytics/merchant/summary on page load
+
+
+
+2. Render metric cards (already using the existing MerchantStatsBar component pattern) for:
+
+   - Total conversations (30 days)
+
+   - Bot-handled % (bot_handled / total * 100)
+
+   - Human takeovers
+
+   - Average response time (in seconds)
+
+   - Token cost (formatted as currency)
+
+
+
+3. Add a simple bar chart using recharts (already in package.json) for messages_per_day:
+
+   <BarChart data={analytics.messages_per_day}> with XAxis=date, YAxis=count
+
+
+
+4. Show top 5 intents as a small table: intent name | count | percentage of total
+
+
+
+All labels use t() with new keys: 'analyticsTitle', 'totalConversations', 'botHandled',
+
+'humanHandled', 'avgResponseTime', 'tokenCost', 'topIntents', 'messagesOverTime'.
+
+Add these keys to all three locale JSON files.
+
+
+
+Phase 7: Test Coverage — Add Real Pytest Suite  ● Required before scaling
+
+
+
+7.1 — Set up pytest with proper fixtures and mocking
+
+Command for agent
+
+Create backend/tests/conftest.py with:
+
+
+
+import pytest, pytest_asyncio
+
+from httpx import AsyncClient
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+from app.main import app
+
+from app.db.session import get_db
+
+from app.core.redis_client import redis_client
+
+from unittest.mock import AsyncMock, patch
+
+
+
+@pytest_asyncio.fixture
+
+async def db_session():
+
+    # Use in-memory SQLite for tests (fast, no Docker needed)
+
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+
+    async with engine.begin() as conn:
+
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSession(engine) as session:
+
+        yield session
+
+
+
+@pytest_asyncio.fixture
+
+async def client(db_session):
+
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    async with AsyncClient(app=app, base_url='http://test') as c:
+
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+
+@pytest.fixture(autouse=True)
+
+def mock_redis():
+
+    with patch('app.api.routers.auth.redis_client') as mock:
+
+        mock.get = AsyncMock(return_value=None)
+
+        mock.set = AsyncMock()
+
+        mock.incr = AsyncMock(return_value=1)
+
+        mock.expire = AsyncMock()
+
+        mock.pipeline = lambda: mock
+
+        mock.execute = AsyncMock(return_value=[1, True])
+
+        yield mock
+
+
+
+Add to backend/requirements.txt:
+
+  pytest>=8.0
+
+  pytest-asyncio>=0.23
+
+  httpx>=0.27
+
+  aiosqlite>=0.20
+
+
+
+7.2 — Rewrite the existing test files as proper pytest tests
+
+Command for agent
+
+Rewrite backend/tests/test_auth_flow.py as:
+
+
+
+import pytest
+
+from httpx import AsyncClient
+
+
+
+@pytest.mark.asyncio
+
+async def test_login_success(client, db_session):
+
+    # Create a test user first
+
+    from app.models.user import User
+
+    from app.core.security import get_password_hash
+
+    user = User(email='test@test.com', hashed_password=get_password_hash('password123'), role='merchant')
+
+    db_session.add(user)
+
+    await db_session.commit()
+
+    # Attempt login
+
+    resp = await client.post('/api/auth/login', data={'username': 'test@test.com', 'password': 'password123'})
+
+    assert resp.status_code == 200
+
+    assert 'access_token' in resp.json()
+
+
+
+@pytest.mark.asyncio
+
+async def test_login_wrong_password(client):
+
+    resp = await client.post('/api/auth/login', data={'username': 'x@x.com', 'password': 'wrong'})
+
+    assert resp.status_code == 401
+
+
+
+@pytest.mark.asyncio
+
+async def test_rate_limit_login(client, mock_redis):
+
+    mock_redis.execute = AsyncMock(return_value=[11, True])  # Simulate 11th attempt
+
+    resp = await client.post('/api/auth/login', data={'username': 'x@x.com', 'password': 'x'})
+
+    assert resp.status_code == 429
+
+
+
+Apply the same pattern to rewrite test_auth_security.py, test_booking_flow.py, and test_cross_tenant.py using the conftest fixtures.
+
+
+
+Phase 8: Freemium Plan & Onboarding Wizard  ● Lowers acquisition barrier
+
+
+
+8.1 — Add a free plan tier to the plans config
+
+Command for agent
+
+In backend/app/config/plans.py, add a 'free' plan entry:
+
+
+
+PLANS = {
+
+    'free': {
+
+        'token_limit': 10000,
+
+        'monthly_quota': 10000,
+
+        'max_products': 20,
+
+        'max_campaigns': 0,      # Campaigns disabled on free
+
+        'channels': ['whatsapp'],
+
+        'features': ['chat', 'products', 'flows'],
+
+    },
+
+    'starter': { ... existing starter plan ... },
+
+    'pro': { ... },
+
+    'enterprise': { ... }
+
+}
+
+
+
+In backend/app/api/routers/auth.py, when creating a new merchant account (registration endpoint),
+
+set business.plan_name = 'free' and business.subscription_status = 'trial' by default.
+
+
+
+In backend/app/api/routers/merchant.py, in any endpoint that creates campaigns,
+
+add a plan check: if business.plan_name == 'free': raise HTTPException(403, 'Upgrade to use campaigns')
+
+
+
+8.2 — Build a 4-step onboarding wizard for new merchants
+
+Command for agent
+
+Create frontend/src/app/app/onboarding/page.tsx — a 4-step wizard that appears for merchants
+
+who have not completed setup (add a setup_complete boolean to the Business model).
+
+
+
+Step 1 — Business info: business name, type (retail / booking / both), language preference
+
+  Calls PATCH /api/merchant/settings with { name, business_type, language }
+
+
+
+Step 2 — Connect a channel: show WhatsApp and Telegram setup cards
+
+  WhatsApp: input field for Bot Token + phone number ID + Meta App Secret
+
+  Telegram: input field for Bot Token
+
+  'Skip for now' button to proceed
+
+
+
+Step 3 — Add your first product or service:
+
+  Simple form: name, price, type (product/service)
+
+  Calls POST /api/merchant/products
+
+  'Skip for now' button
+
+
+
+Step 4 — Test your bot:
+
+  Show a QR code link or direct test URL
+
+  Completion button calls PATCH /api/merchant/settings { setup_complete: true }
+
+  Redirects to /app (main dashboard)
+
+
+
+Add setup_complete to the Business model and a new Alembic migration.
+
+In the merchant layout (frontend/src/app/app/layout.tsx), redirect to /app/onboarding
+
+if the fetched business has setup_complete === false.
+
+
+
+Summary — Execution Order
+
+
+
+Give these commands to your Antigravity agent in this order. Each phase builds on the previous.
+
+
+
+Phase
+
+What it solves
+
+Files changed
+
+Priority
+
+1
+
+Security: JWT default, .gitignore, rate limit, IS_PRODUCTION
+
+docker-compose.yml · .gitignore · auth.py · .env.example
+
+CRITICAL
+
+2
+
+Campaign compliance: HSM template model + validation
+
+models/template_message.py · merchant.py · campaigns.py
+
+CRITICAL
+
+3
+
+Human handoff: takeover/handback + agent reply + UI
+
+merchant.py · chat_core.py · integrations.py · chat/page.tsx
+
+HIGH
+
+4
+
+No-code flows: BotFlow model + matching + UI
+
+models/bot_flow.py · chat_core.py · merchant.py · settings/page.tsx
+
+HIGH
+
+5
+
+RAG knowledge base: pgvector + chunking + vector search
+
+models/knowledge_chunk.py · knowledge_service.py · ai_engine.py
+
+HIGH
+
+6
+
+Analytics dashboard: aggregation API + charts UI
+
+analytics.py · app/page.tsx · locale files
+
+MEDIUM
+
+7
+
+Test suite: conftest + proper pytest fixtures + mocked Redis
+
+tests/conftest.py · all test_*.py files · requirements.txt
+
+MEDIUM
+
+8
+
+Freemium + onboarding wizard: free plan + 4-step setup
+
+config/plans.py · models/business.py · onboarding/page.tsx · layout.tsx
+
+MEDIUM
+
+
+
+After completing all 8 phases, your platform will have: no critical security vulnerabilities · compliant WhatsApp campaigns · human agent handoff · no-code bot flows · vector knowledge base · per-merchant analytics · real test coverage · a freemium entry tier. This closes all 8 gaps identified in the competitive research.
+
+
+
+Page  of

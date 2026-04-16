@@ -245,7 +245,12 @@
     "inbox_desc": "Priorities filtered by AI",
     "simulator_title": "Simulator",
     "simulator_badge": "Live",
-    "simulator_desc": "Test AI responses here"
+    "simulator_desc": "Test AI responses here",
+    "takeOver": "Take Over (Pause AI)",
+    "handBackToBot": "Hand Back to AI",
+    "sendAsAgent": "Send as Agent",
+    "humanStatus": "Human",
+    "botStatus": "AI"
   },
   "system": {
     "title": "System Settings",

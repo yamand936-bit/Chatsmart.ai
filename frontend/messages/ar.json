@@ -245,7 +245,12 @@
     "inbox_desc": "تم فلترة الأولويات عبر الذكاء الاصطناعي",
     "simulator_title": "المحاكي الآلي (Simulator)",
     "simulator_badge": "مباشر",
-    "simulator_desc": "اختبر ردود الذكاء الاصطناعي هنا"
+    "simulator_desc": "اختبر ردود الذكاء الاصطناعي هنا",
+    "takeOver": "استلام المحادثة (إيقاف الذكاء الاصطناعي)",
+    "handBackToBot": "إعادة للذكاء الاصطناعي",
+    "sendAsAgent": "إرسال كوكيل",
+    "humanStatus": "وكيل بشري",
+    "botStatus": "ذكاء اصطناعي"
   },
   "system": {
     "title": "إعدادات النظام",

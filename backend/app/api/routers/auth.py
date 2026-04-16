@@ -13,14 +13,17 @@ from app.core.config import settings
 router = APIRouter()
 
 async def check_rate_limit(key: str, limit: int, window: int):
-    """Sliding window rate limit using Redis"""
-    await redis_client.set(key, 0, nx=True, ex=window)
-    current_count = await redis_client.incr(key)
-    # Reset TTL on every request to create a true sliding window block
-    await redis_client.expire(key, window)
-    if current_count > limit:
-        minutes = getattr(window, "minutes", window // 60)
-        raise HTTPException(status_code=429, detail=f"Too many requests. Please try again after {minutes} minutes.")
+    """Atomic sliding window rate limit using Redis pipeline."""
+    pipe = redis_client.pipeline()
+    await pipe.incr(key)
+    await pipe.expire(key, window)
+    results = await pipe.execute()
+    count = results[0]
+    if count > limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many attempts. Try again in {window // 60} minutes."
+        )
 
 @router.post("/login")
 async def login(response: Response, request: Request, data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
