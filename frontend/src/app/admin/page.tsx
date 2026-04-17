@@ -496,7 +496,7 @@ export default function AdminDashboard() {
             <StatCard title={'MRR'} value={`$${metrics.mrr || 0}`} icon="💰" />
             <StatCard title={'Requests/Day'} value={metrics.ai_requests_today || 0} icon="⚡" 
                trend={metrics.sparklines?.requests} />
-            <StatCard title={'Webhook Health'} value={`${metrics.webhook_delivery_rate !== undefined ? metrics.webhook_delivery_rate : 100}%`} icon="❤️‍🩹" />
+            <StatCard title={'Webhook Health'} value={(metrics.webhook_delivery_rate !== undefined ? metrics.webhook_delivery_rate : 100) + '%'} icon="💖" />
           </div>
         )}
         
@@ -1050,7 +1050,7 @@ export default function AdminDashboard() {
               {/* Global Announcement Banner Panel */}
               <div className="mt-8 border-t border-slate-200 pt-6">
                 <h4 className="flex items-center gap-2 font-bold text-red-700 mb-2">
-                  <span>📢</span> Global Announcement Banner
+                  <span>🚨</span> Global Announcement Banner
                 </h4>
                 <p className="text-sm text-slate-500 mb-3">Broadcast a persistent warning across all merchant dashboards instantly.</p>
                 <div className="flex gap-2">
