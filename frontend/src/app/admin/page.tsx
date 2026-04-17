@@ -464,18 +464,25 @@ export default function AdminDashboard() {
     return 0; // free
   };
 
-  const profitData = businesses.map(b => {
+  const profitData = businesses.map((b) => {
       const usage = b.token_usage || 0;
       const plan = b.plan_name || 'free';
       const cost = (usage / 1000) * getPlanCostPer1k(plan);
       const profit = getPlanBasePrice(plan) - cost;
-      return {
+      
+      const res: any = {
          name: b.name,
-         [tAdmin('economic.total_tokens') || 'Tokens']: usage,
          Cost: parseFloat(cost.toFixed(6)),
-         Profit: parseFloat(profit.toFixed(2)),
-         [tAdmin('forecast.expected') || 'Expected Profit']: parseFloat((profit * 1.15).toFixed(2))
+         Profit: parseFloat(profit.toFixed(2))
       };
+      
+      const tokenKey = tAdmin('economic.total_tokens') || 'Tokens';
+      const expectKey = tAdmin('forecast.expected') || 'Expected Profit';
+      
+      res[tokenKey] = usage;
+      res[expectKey] = parseFloat((profit * 1.15).toFixed(2));
+      
+      return res;
   });
 
   // Force AST recompilation to invalidate Next.js corrupted cache
