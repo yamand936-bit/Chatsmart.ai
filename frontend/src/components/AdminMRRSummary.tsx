@@ -61,7 +61,7 @@ export default function AdminMRRSummary() {
           <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1">{activeCount}</p>
         </div>
         <div className={`p-5 rounded-2xl shadow-sm border ${churnRisks.length > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Churn Risk (Usage >85%)</p>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Churn Risk (Usage &gt;85%)</p>
           <div className="flex items-center gap-2 mt-1">
             <p className={`text-3xl font-bold ${churnRisks.length > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'}`}>
               {churnRisks.length}
