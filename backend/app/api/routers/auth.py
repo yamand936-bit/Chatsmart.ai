@@ -37,6 +37,11 @@ async def login(response: Response, request: Request, data: OAuth2PasswordReques
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
         
+    if user.role == "merchant":
+        is_maintenance = await redis_client.get("system:maintenance")
+        if is_maintenance:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="System is currently undergoing maintenance. Please try again later.")
+            
     access_token = create_access_token(
         subject=str(user.id),
         role=user.role,

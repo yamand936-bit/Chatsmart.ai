@@ -70,6 +70,22 @@ async def get_metrics(db: AsyncSession = Depends(get_db), admin: dict = Depends(
         
         plan_distribution[plan_str] = count
 
+    today = date.today()
+    sparkline_tokens = []
+    sparkline_requests = []
+    sparkline_businesses = []
+    
+    for i in range(6, -1, -1):
+        target_date = today - timedelta(days=i)
+        td_res = await db.execute(select(func.sum(UsageLog.tokens_used), func.sum(UsageLog.request_count)).where(UsageLog.date_logged == target_date))
+        td_tok, td_req = td_res.one()
+        sparkline_tokens.append(int(td_tok or 0))
+        sparkline_requests.append(int(td_req or 0))
+        
+        target_datetime = datetime.combine(target_date, datetime.max.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+        tb_res = await db.execute(select(func.count(Business.id)).where(Business.created_at <= target_datetime))
+        sparkline_businesses.append(int(tb_res.scalar() or 0))
+
     return {
         "status": "ok", 
         "total_businesses": total_businesses, 
@@ -79,7 +95,12 @@ async def get_metrics(db: AsyncSession = Depends(get_db), admin: dict = Depends(
         "ai_requests_today": requests_today,
         "mrr": mrr,
         "churn_rate": churn_rate,
-        "plan_distribution": plan_distribution
+        "plan_distribution": plan_distribution,
+        "sparklines": {
+            "tokens": sparkline_tokens,
+            "requests": sparkline_requests,
+            "businesses": sparkline_businesses
+        }
     }
 
 @router.get("/businesses_test")
@@ -130,32 +151,64 @@ async def get_businesses_test(
 async def get_businesses(
     limit: int = 50,
     offset: int = 0,
+    search: Optional[str] = None,
+    plan: Optional[str] = None,
+    usage_gt: Optional[int] = None,
+    sort_by: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin)
 ):
-    total = await db.scalar(select(func.count()).select_from(Business))
-    
-    avg_resp_subquery = (
-        select(Message.business_id, func.avg(Message.response_time).label("avg_resp_time"))
-        .where(Message.sender_type == "assistant")
-        .group_by(Message.business_id)
-        .subquery()
-    )
+    from sqlalchemy import or_
 
-    result = await db.execute(
-        select(Business, func.max(User.email), func.sum(UsageLog.tokens_used), avg_resp_subquery.c.avg_resp_time)
-        .join(User, Business.id == User.business_id)
-        .outerjoin(UsageLog, Business.id == UsageLog.business_id)
-        .outerjoin(avg_resp_subquery, Business.id == avg_resp_subquery.c.business_id)
-        .where(User.role == "merchant")
-        .group_by(Business.id, avg_resp_subquery.c.avg_resp_time)
-        .order_by(Business.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    query = select(Business, func.max(User.email).label("owner_email"), func.sum(UsageLog.tokens_used).label("tokens_used"))
+    query = query.join(User, Business.id == User.business_id, isouter=True)
+    query = query.outerjoin(UsageLog, Business.id == UsageLog.business_id)
+    query = query.where(User.role == "merchant")
+
+    if search:
+        search_filter = f"%{search}%"
+        query = query.where(or_(Business.name.ilike(search_filter), User.email.ilike(search_filter)))
+    
+    if plan and plan.lower() != "all":
+        query = query.where(Business.plan_name == plan)
+
+    query = query.group_by(Business.id)
+
+    # Note: Usage filtering in HAVING since we are aggregating
+    if usage_gt is not None:
+        # e.g., usage_gt=80 means showing businesses where tokens_used > (token_limit * 0.8)
+        # For simplicity, we filter AFTER executing the query since token_limit could be variable or null
+        pass
+        
+    if sort_by == 'usage_desc':
+        query = query.order_by(func.sum(UsageLog.tokens_used).desc().nullslast())
+    elif sort_by == 'created_asc':
+        query = query.order_by(Business.created_at.asc())
+    else:
+        query = query.order_by(Business.created_at.desc())
+        
+    result = await db.execute(query)
     rows = result.all()
+
+    PLAN_PRICES = {"free": 0, "pro": 49, "enterprise": 199, "starter": 49}
     data = []
-    for b, e, t_used, avg_time in rows:
+    for row in rows:
+        b = row[0]
+        email = row[1]
+        t_used = row[2] or 0
+        
+        limit_val = b.token_limit or 100000
+        usage_pct = (t_used / limit_val) * 100 if limit_val > 0 else 0
+        
+        # Post-query usage percentage filter
+        if usage_gt is not None and usage_pct < usage_gt:
+            continue
+            
+        mrr = PLAN_PRICES.get(b.plan_name or "free", 0)
+        # Approximate token cost (e.g., $0.005 per 1k tokens)
+        token_cost = (t_used / 1000.0) * 0.005
+        profit_margin = mrr - token_cost
+
         data.append({
             "id": b.id,
             "name": b.name,
@@ -163,13 +216,62 @@ async def get_businesses(
             "status": b.status,
             "token_limit": b.token_limit,
             "monthly_quota": b.monthly_quota,
-            "token_usage": t_used or 0,
+            "token_usage": t_used,
+            "usage_pct": round(usage_pct, 1),
             "plan_name": b.plan_name,
             "created_at": b.created_at,
-            "owner_email": e,
-            "avg_response_time": float(avg_time) if avg_time else 0.0
+            "owner_email": email,
+            "mrr": mrr,
+            "api_cost": round(token_cost, 2),
+            "profit_margin": round(profit_margin, 2)
         })
+        
+    total = len(data)
+    data = data[offset : offset + limit]
+        
     return {"status": "ok", "data": data, "total": total}
+
+class BatchPlanRequest(BaseModel):
+    business_ids: list[str]
+    new_plan: str
+
+class BatchTokensRequest(BaseModel):
+    business_ids: list[str]
+    token_limit: int
+
+@router.post("/businesses/batch/plan")
+async def batch_update_plan(data: BatchPlanRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    from sqlalchemy import update
+    u_ids = [uuid.UUID(bid) for bid in data.business_ids]
+    if u_ids:
+        await db.execute(update(Business).where(Business.id.in_(u_ids)).values(plan_name=data.new_plan))
+        await db.commit()
+    return {"status": "ok"}
+
+@router.post("/businesses/batch/tokens")
+async def batch_update_tokens(data: BatchTokensRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    from sqlalchemy import update
+    u_ids = [uuid.UUID(bid) for bid in data.business_ids]
+    if u_ids:
+        await db.execute(update(Business).where(Business.id.in_(u_ids)).values(token_limit=data.token_limit))
+        await db.commit()
+    return {"status": "ok"}
+
+class MaintenanceRequest(BaseModel):
+    enabled: bool
+
+@router.post("/system/maintenance")
+async def toggle_maintenance_mode(data: MaintenanceRequest, admin: dict = Depends(get_current_admin)):
+    # Simple redis flag
+    try:
+        if data.enabled:
+            await redis_client.set("system:maintenance", "1")
+        else:
+            await redis_client.delete("system:maintenance")
+        return {"status": "ok", "maintenance_enabled": data.enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Redis connection failed")
+
 
 @router.get("/businesses/{business_id}")
 async def get_business(business_id: uuid.UUID, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):

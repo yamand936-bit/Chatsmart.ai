@@ -20,13 +20,28 @@ const AdminMRRSummary = dynamic(() => import('@/components/AdminMRRSummary'), {
   loading: () => <div className="p-10 text-center"><Skeleton className="h-60" /></div>,
 });
 
-const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: string }) => (
-  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between hover:shadow-md transition">
-    <div>
-      <p className="text-slate-500 dark:text-slate-400 text-sm mb-1 font-medium">{title}</p>
-      <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
+const Sparkline = ({ data }: { data: number[] }) => {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data, 1);
+  return (
+    <div className="flex items-end h-[18px] gap-0.5 mt-3">
+      {data.map((val, i) => (
+        <div key={i} className="flex-1 bg-blue-100 rounded-sm transition-all hover:bg-blue-400 group-hover:bg-blue-200" title={val.toString()} style={{ height: `${Math.max((val / max) * 100, 10)}%` }}></div>
+      ))}
     </div>
-    <div className="text-3xl bg-blue-50 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
+  );
+};
+
+const StatCard = ({ title, value, icon, trend }: { title: string, value: string | number, icon: string, trend?: number[] }) => (
+  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition group overflow-hidden relative">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-1 font-medium">{title}</p>
+        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
+      </div>
+      <div className="text-3xl bg-blue-50 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
+    </div>
+    {trend && trend.length > 0 && <Sparkline data={trend} />}
   </div>
 );
 
@@ -43,6 +58,15 @@ export default function AdminDashboard() {
   const [systemHealth, setSystemHealth] = useState<any>(null);
   const [logSearch, setLogSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'businesses' | 'create' | 'usage' | 'plans' | 'health' | 'settings' | 'logs'>('businesses');
+
+  // Filtering & Batch
+  const [searchQuery, setSearchQuery] = useState('');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [usageGtFilter, setUsageGtFilter] = useState<number | ''>('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState('');
+  const [bulkPlan, setBulkPlan] = useState('pro');
+  const [bulkTokens, setBulkTokens] = useState(100000);
 
   // New States for Edit / Settings Modal
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
@@ -71,12 +95,30 @@ export default function AdminDashboard() {
   const [waAppSecret, setWaAppSecret] = useState('');
 
   useEffect(() => {
-    fetchData();
+    fetchBusinesses();
+  }, [searchQuery, planFilter, usageGtFilter]);
+
+  useEffect(() => {
+    console.log("AdminDashboard mounted: Initializing SSE/Polling");
+    fetchData(); // initial fetch for metrics and logs
+    
+    // Auto-refresh metrics and feeds every 30 seconds
+    const intervalId = setInterval(() => {
+       console.log("Auto-refreshing dashboard data...");
+       fetchData();
+    }, 30000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
-  const fetchData = async () => {
+  const fetchBusinesses = async () => {
     try {
-      const bizRes = await axios.get(`/api/admin/businesses`, { withCredentials: true });
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (planFilter && planFilter !== 'all') params.append('plan', planFilter);
+      if (usageGtFilter !== '') params.append('usage_gt', String(usageGtFilter));
+
+      const bizRes = await axios.get(`/api/admin/businesses?${params.toString()}`, { withCredentials: true });
       if (bizRes.data && bizRes.data.data) {
         setBusinesses(bizRes.data.data);
       } else {
@@ -85,9 +127,13 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Failed to load businesses:", error);
     }
+  };
 
+  const fetchData = async () => {
+    fetchBusinesses();
+    
     try {
-      const logsRes = await axios.get(`/api/admin/logs`, { withCredentials: true });
+      const logsRes = await axios.get(`/api/admin/logs?limit=15`, { withCredentials: true });
       if (logsRes.data && logsRes.data.data) {
         setLogs(logsRes.data.data);
       }
@@ -148,6 +194,38 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBulkAction = async () => {
+    if (selectedIds.length === 0) return alert('Select businesses first');
+    if (!bulkAction) return alert('Select an action');
+
+    if (!window.confirm(`Are you sure you want to apply this action to ${selectedIds.length} businesses?`)) return;
+
+    try {
+      setCreating(true);
+      if (bulkAction === 'plan') {
+         await axios.post('/api/admin/businesses/batch/plan', { business_ids: selectedIds, new_plan: bulkPlan }, { withCredentials: true });
+      } else if (bulkAction === 'tokens') {
+         await axios.post('/api/admin/businesses/batch/tokens', { business_ids: selectedIds, token_limit: bulkTokens }, { withCredentials: true });
+      }
+      setCreateMsg({ type: 'success', text: 'Batch action completed successfully.' });
+      setSelectedIds([]);
+      fetchBusinesses();
+    } catch (e) {
+      alert('Batch action failed.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.length === businesses.length) setSelectedIds([]);
+    else setSelectedIds(businesses.map(b => b.id));
+  };
+
   const handleSaveSystemSettings = async () => {
     setSavingSettings(true);
     try {
@@ -158,6 +236,21 @@ export default function AdminDashboard() {
       alert("Failed to save settings.");
     }
     setSavingSettings(false);
+  };
+
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+
+  const handleToggleMaintenance = async () => {
+    if (!window.confirm("Are you sure you want to toggle Maintenance Mode? When enabled, merchants will not be able to log in.")) return;
+    try {
+      const res = await axios.post('/api/admin/system/maintenance', { enabled: !maintenanceEnabled }, { withCredentials: true });
+      if (res.data.status === 'ok') {
+         setMaintenanceEnabled(res.data.maintenance_enabled);
+         alert(`Maintenance mode is now ${res.data.maintenance_enabled ? 'ON' : 'OFF'}`);
+      }
+    } catch (e) {
+      alert('Failed to toggle maintenance mode');
+    }
   };
 
   const [selectedPlanBusinessId, setSelectedPlanBusinessId] = useState<string>('');
@@ -386,48 +479,54 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="space-y-6" dir={dir}>
-      {/* Stats Section */}
-      {metrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <StatCard title={tAdmin('stats.total_businesses')} value={metrics.total_businesses || 0} icon="🏢" />
-          <StatCard title={tAdmin('stats.active_businesses')} value={metrics.active_businesses || 0} icon="🟢" />
-          <StatCard title={tAdmin('stats.total_orders')} value={metrics.total_orders || 0} icon="📦" />
-          <StatCard title={tAdmin('stats.total_tokens_used')} value={metrics.total_tokens_used || 0} icon="🪙" />
-          <StatCard title={'MRR'} value={`$${metrics.mrr || 0}`} icon="💰" />
-          <StatCard title={'Churn Rate'} value={`${metrics.churn_rate || '0.0'}%`} icon="📉" />
-        </div>
-      )}
-      
-      {/* System Health Section */}
-      {systemHealth && (
-          <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner rtl:space-x-reverse">
-             <div className="flex items-center gap-2">
-                <span className="text-xl">🖥️</span>
-                <span className="text-sm font-bold text-slate-700">CPU: <span className={systemHealth.cpu_usage > 80 ? 'text-red-500' : 'text-green-600'}>{systemHealth.cpu_usage}%</span></span>
-             </div>
-             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-                <span className="text-xl">🛠️</span>
-                <span className="text-sm font-bold text-slate-700">RAM: <span className={systemHealth.memory_usage > 80 ? 'text-red-500' : 'text-blue-600'}>{systemHealth.memory_usage}%</span></span>
-             </div>
-             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-                <span className="text-xl">💽</span>
-                <span className="text-sm font-bold text-slate-700">Disk: <span className={systemHealth.disk_usage > 80 ? 'text-red-500' : 'text-slate-600'}>{systemHealth.disk_usage}%</span></span>
-             </div>
-             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-                <span className="text-xl">⚡</span>
-                <span className="text-sm font-bold text-slate-700">Redis: <span className={systemHealth.redis_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.redis_status.toUpperCase()}</span></span>
-             </div>
-             <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-                <span className="text-xl">🌐</span>
-                <span className="text-sm font-bold text-slate-700">DB: <span className={systemHealth.db_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.db_status.toUpperCase()}</span></span>
-             </div>
+    <div className="flex gap-6" dir={dir}>
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-6 min-w-0">
+        {/* Stats Section */}
+        {metrics && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <StatCard title={tAdmin('stats.total_businesses')} value={metrics.total_businesses || 0} icon="🏢" 
+               trend={metrics.sparklines?.businesses} />
+            <StatCard title={tAdmin('stats.active_businesses')} value={metrics.active_businesses || 0} icon="🟢" 
+               trend={metrics.sparklines?.businesses} />
+            <StatCard title={tAdmin('stats.total_orders')} value={metrics.total_orders || 0} icon="📦" />
+            <StatCard title={tAdmin('stats.total_tokens_used')} value={metrics.total_tokens_used || 0} icon="🪙" 
+               trend={metrics.sparklines?.tokens} />
+            <StatCard title={'MRR'} value={`$${metrics.mrr || 0}`} icon="💰" />
+            <StatCard title={'Requests/Day'} value={metrics.ai_requests_today || 0} icon="⚡" 
+               trend={metrics.sparklines?.requests} />
           </div>
-      )}
+        )}
+        
+        {/* System Health Section */}
+        {systemHealth && (
+            <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-inner rtl:space-x-reverse">
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">🖥️</span>
+                  <span className="text-sm font-bold text-slate-700">CPU: <span className={systemHealth.cpu_usage > 80 ? 'text-red-500' : 'text-green-600'}>{systemHealth.cpu_usage}%</span></span>
+               </div>
+               <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">🛠️</span>
+                  <span className="text-sm font-bold text-slate-700">RAM: <span className={systemHealth.memory_usage > 80 ? 'text-red-500' : 'text-blue-600'}>{systemHealth.memory_usage}%</span></span>
+               </div>
+               <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">💽</span>
+                  <span className="text-sm font-bold text-slate-700">Disk: <span className={systemHealth.disk_usage > 80 ? 'text-red-500' : 'text-slate-600'}>{systemHealth.disk_usage}%</span></span>
+               </div>
+               <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <span className="text-sm font-bold text-slate-700">Redis: <span className={systemHealth.redis_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.redis_status.toUpperCase()}</span></span>
+               </div>
+               <div className="w-px h-6 bg-slate-300 mx-2 hidden md:block"></div>
+               <div className="flex items-center gap-2">
+                  <span className="text-xl">🌐</span>
+                  <span className="text-sm font-bold text-slate-700">DB: <span className={systemHealth.db_status === 'online' ? 'text-green-600' : 'text-red-600'}>{systemHealth.db_status.toUpperCase()}</span></span>
+               </div>
+            </div>
+        )}
       
       {/* Plans Distribution (optional visual) */}
       {metrics?.plan_distribution && (
@@ -460,7 +559,68 @@ export default function AdminDashboard() {
         
         {/* Businesses Tab */}
         {activeTab === 'businesses' && (
-          <div className="overflow-x-auto">
+          <div className="space-y-4">
+            {/* Filters & Bulk Actions Block */}
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                 <input 
+                   type="text" 
+                   placeholder="Search name or email..." 
+                   className="border border-slate-300 rounded-lg px-3 py-2 text-sm max-w-xs focus:ring-2 outline-none"
+                   value={searchQuery}
+                   onChange={e => setSearchQuery(e.target.value)}
+                 />
+                 <select 
+                   className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                   value={planFilter}
+                   onChange={e => setPlanFilter(e.target.value)}
+                 >
+                   <option value="all">All Plans</option>
+                   <option value="free">Free</option>
+                   <option value="starter">Starter</option>
+                   <option value="pro">Pro</option>
+                   <option value="enterprise">Enterprise</option>
+                 </select>
+                 <select 
+                   className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"
+                   value={usageGtFilter}
+                   onChange={e => setUsageGtFilter(e.target.value === '' ? '' : Number(e.target.value))}
+                 >
+                   <option value="">Any Usage</option>
+                   <option value="50">&gt; 50% Usage</option>
+                   <option value="80">&gt; 80% Usage (Risk)</option>
+                   <option value="95">&gt; 95% Usage (Critical)</option>
+                 </select>
+              </div>
+
+              {selectedIds.length > 0 && (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 p-2 rounded-lg">
+                 <span className="text-sm font-semibold text-blue-700">{selectedIds.length} chosen</span>
+                 <select 
+                   className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white"
+                   value={bulkAction}
+                   onChange={e => setBulkAction(e.target.value)}
+                 >
+                    <option value="">-- Actions --</option>
+                    <option value="plan">Change Plan</option>
+                    <option value="tokens">Adjust Tokens</option>
+                 </select>
+                 {bulkAction === 'plan' && (
+                    <select className="text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
+                       <option value="free">Free</option>
+                       <option value="pro">Pro</option>
+                       <option value="enterprise">Enterprise</option>
+                    </select>
+                 )}
+                 {bulkAction === 'tokens' && (
+                    <input type="number" className="w-24 text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkTokens} onChange={e => setBulkTokens(Number(e.target.value))} />
+                 )}
+                 <button onClick={handleBulkAction} className="bg-blue-600 text-white text-sm px-3 py-1 rounded-md hover:bg-blue-700">Apply</button>
+              </div>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
             {businesses.length === 0 ? (
                <div className="flex flex-col items-center justify-center py-20 text-slate-500 min-h-[300px]">
                  <div className="text-6xl mb-4">🏢</div>
@@ -476,11 +636,13 @@ export default function AdminDashboard() {
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 text-sm">
+                    <th className="py-4 font-semibold px-2 text-start">
+                      <input type="checkbox" onChange={toggleAll} checked={businesses.length > 0 && selectedIds.length === businesses.length} />
+                    </th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.name')}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.owner_email')}</th>
-                    <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.business_type')}</th>
+                    <th className="py-4 font-semibold px-2 text-start">Profit Margin</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.token_usage')}</th>
-                    <th className="py-4 font-semibold px-2 text-start">{tAdmin('performance.speed') || 'Avg Response Time'}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.connection_status') || 'Connection Status'}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.status')}</th>
                     <th className="py-4 font-semibold px-2 text-end">{tCommon('actions')}</th>
@@ -497,9 +659,20 @@ export default function AdminDashboard() {
                     
                     return (
                     <tr key={b.id} className="border-b border-slate-100 hover:bg-gray-50 transition-colors group">
-                      <td className="py-4 px-2 font-medium text-slate-800">{b.name}</td>
+                      <td className="py-4 px-2">
+                         <input type="checkbox" checked={selectedIds.includes(b.id)} onChange={() => toggleSelection(b.id)} />
+                      </td>
+                      <td className="py-4 px-2 font-medium text-slate-800">
+                        {b.name}
+                        <div className="text-xs text-slate-500 font-normal mt-0.5 capitalize">{b.plan_name || 'Free'}</div>
+                      </td>
                       <td className="py-4 px-2 text-slate-600">{b.owner_email}</td>
-                      <td className="py-4 px-2 text-slate-600 capitalize">{b.business_type ? tAdmin(`create.type_${b.business_type}` as any) : '-'}</td>
+                      <td className="py-4 px-2">
+                        <span className={`font-semibold ${b.profit_margin < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ${b.profit_margin}
+                        </span>
+                        <div className="text-[10px] text-slate-400">Cost: ${b.api_cost}</div>
+                      </td>
                       <td className="py-4 px-2">
                          <div className="flex flex-col gap-1 w-32">
                            <span className="text-xs text-slate-500">{usage.toLocaleString()} / {limit.toLocaleString()}</span>
@@ -507,11 +680,6 @@ export default function AdminDashboard() {
                              <div className={`h-1.5 rounded-full ${pgColor} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
                            </div>
                          </div>
-                      </td>
-                      <td className="py-4 px-2 text-slate-800 font-medium">
-                         <span className={b.avg_response_time > 5.0 ? 'text-red-600 font-bold' : ''}>
-                           {b.avg_response_time ? `${b.avg_response_time.toFixed(2)}s` : '-'}
-                         </span>
                       </td>
                       <td className="py-4 px-2">
                          <span title="Connection Status">
@@ -538,6 +706,7 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
 
@@ -771,6 +940,22 @@ export default function AdminDashboard() {
               <h3 className="text-xl font-semibold text-slate-800">System Configuration</h3>
               <p className="text-slate-500">Manage platform-wide settings such as AI providers, support phone, and plan quotas.</p>
             </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
+               <h4 className="flex items-center gap-2 font-bold text-red-800 mb-2">
+                 <span>⚠️</span> Emergency Actions
+               </h4>
+               <p className="text-sm text-red-700 mb-4">
+                 Enable Maintenance Mode to block all merchant logins during updates or downtime. Admin access will remain active.
+               </p>
+               <button 
+                 onClick={handleToggleMaintenance}
+                 className={`px-4 py-2 font-bold rounded-lg transition-colors ${maintenanceEnabled ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-white text-red-600 border border-red-300 hover:bg-red-100'}`}
+               >
+                 {maintenanceEnabled ? 'Deactivate Maintenance Mode' : 'Activate Maintenance Mode'}
+               </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div className="space-y-4">
@@ -918,6 +1103,45 @@ export default function AdminDashboard() {
           </div>
         )}
 
+      </div>
+
+      {/* Live Activity Feed Sidebar */}
+      <div className="w-80 flex-shrink-0 space-y-4">
+         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 p-4 sticky top-6">
+           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
+             <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+               <span className="relative flex h-3 w-3">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+               </span>
+               Live Activity
+             </h3>
+             <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span>
+           </div>
+           
+           <div className="space-y-4 max-h-[800px] overflow-y-auto pr-1">
+             {logs.length === 0 ? (
+               <div className="text-center text-sm text-slate-500 py-4">No recent activity.</div>
+             ) : (
+               logs.slice(0, 15).map((log, idx) => (
+                 <div key={idx} className="pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                   <div className="flex items-start gap-2">
+                     <span className="text-[16px] leading-none mt-0.5">{log.error_type === 'info' ? 'ℹ️' : log.error_type === 'warning' ? '⚠️' : '🔴'}</span>
+                     <div>
+                       <p className="text-sm font-medium text-slate-700 leading-snug">
+                         <span className="font-bold">{log.business_name || 'System'}</span> 
+                         <span className="text-slate-500 font-normal ml-1 line-clamp-2">{log.message}</span>
+                       </p>
+                       <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-mono">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+               ))
+             )}
+           </div>
+         </div>
       </div>
 
       {/* Settings Modal */}
