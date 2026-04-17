@@ -478,6 +478,7 @@ export default function AdminDashboard() {
       };
   });
 
+  // Force AST recompilation to invalidate Next.js corrupted cache
   return (
     <div className="flex gap-6" dir={dir}>
       {/* Main Content Area */}
