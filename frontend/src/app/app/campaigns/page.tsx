@@ -177,7 +177,7 @@ export default function CampaignsPage() {
                    </div>
                  ) : (
                    <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium bg-white dark:bg-slate-700 text-slate-900 dark:text-white">
-                      <option value="">-- AI Freeform (Not recommended for WhatsApp >24h) --</option>
+                      <option value="">-- AI Freeform (Not recommended for WhatsApp &gt;24h) --</option>
                       {templates.map(t => (
                          <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
                       ))}
