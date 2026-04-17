@@ -86,6 +86,12 @@ async def get_metrics(db: AsyncSession = Depends(get_db), admin: dict = Depends(
         tb_res = await db.execute(select(func.count(Business.id)).where(Business.created_at <= target_datetime))
         sparkline_businesses.append(int(tb_res.scalar() or 0))
 
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok", 
         "total_businesses": total_businesses, 
@@ -93,6 +99,7 @@ async def get_metrics(db: AsyncSession = Depends(get_db), admin: dict = Depends(
         "total_orders": total_orders,
         "total_tokens_used": total_tokens,
         "ai_requests_today": requests_today,
+        "webhook_delivery_rate": webhook_delivery_rate,
         "mrr": mrr,
         "churn_rate": churn_rate,
         "plan_distribution": plan_distribution,
@@ -160,7 +167,7 @@ async def get_businesses(
 ):
     from sqlalchemy import or_
 
-    query = select(Business, func.max(User.email).label("owner_email"), func.sum(UsageLog.tokens_used).label("tokens_used"))
+    query = select(Business, func.max(User.email).label("owner_email"), func.sum(UsageLog.tokens_used).label("tokens_used"), func.max(UsageLog.date_logged).label("last_active"))
     query = query.join(User, Business.id == User.business_id, isouter=True)
     query = query.outerjoin(UsageLog, Business.id == UsageLog.business_id)
     query = query.where(User.role == "merchant")
@@ -196,6 +203,7 @@ async def get_businesses(
         b = row[0]
         email = row[1]
         t_used = row[2] or 0
+        last_active = row[3]
         
         limit_val = b.token_limit or 100000
         usage_pct = (t_used / limit_val) * 100 if limit_val > 0 else 0
@@ -221,6 +229,7 @@ async def get_businesses(
             "plan_name": b.plan_name,
             "created_at": b.created_at,
             "owner_email": email,
+            "last_active": last_active.isoformat() if last_active else None,
             "mrr": mrr,
             "api_cost": round(token_cost, 2),
             "profit_margin": round(profit_margin, 2)
@@ -257,6 +266,21 @@ async def batch_update_tokens(data: BatchTokensRequest, db: AsyncSession = Depen
         await db.commit()
     return {"status": "ok"}
 
+
+class AnnouncementRequest(BaseModel):
+    message: str
+
+@router.post("/system/announcement")
+async def broadcast_announcement(data: AnnouncementRequest, admin: dict = Depends(get_current_admin)):
+    try:
+        if data.message:
+            await redis_client.set("system:announcement", data.message)
+        else:
+            await redis_client.delete("system:announcement")
+        return {"status": "ok"}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Redis connection failed")
+
 class MaintenanceRequest(BaseModel):
     enabled: bool
 
@@ -283,6 +307,12 @@ async def get_business(business_id: uuid.UUID, db: AsyncSession = Depends(get_db
     telegram = next((f for f in b.features if f.feature_type == "telegram"), None)
     whatsapp = next((f for f in b.features if f.feature_type == "whatsapp"), None)
 
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok",
         "data": {
@@ -447,6 +477,12 @@ async def create_business(data: CreateBusinessRequest, db: AsyncSession = Depend
     db.add(merchant_user)
     await db.commit()
     
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok", 
         "business_id": str(business.id),
@@ -541,6 +577,12 @@ async def create_subscription_checkout(data: SubscribeRequest, db: AsyncSession 
     business.subscription_status = "active"
 
     await db.commit()
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok",
         "message": f"Upgraded to {data.plan} plan"
@@ -630,6 +672,12 @@ async def system_health(admin: dict = Depends(get_current_admin)):
     except Exception:
         redis_status = "offline"
 
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok",
         "data": {
@@ -684,6 +732,12 @@ async def get_mrr(db: AsyncSession = Depends(get_db), admin: dict = Depends(get_
                 "reason": "token_limit_near"
             })
 
+
+    from app.models.domain import SystemErrorLog
+    target_datetime = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc).replace(tzinfo=None)
+    webhook_fails = (await db.execute(select(func.count(SystemErrorLog.id)).where(SystemErrorLog.error_type == 'webhook_failed', SystemErrorLog.timestamp >= target_datetime))).scalar() or 0
+    webhook_delivery_rate = 100.0 if webhook_fails == 0 else max(0.0, 100.0 - (float(webhook_fails) / (float(requests_today) + float(webhook_fails)) * 100))
+    webhook_delivery_rate = round(webhook_delivery_rate, 2)
     return {
         "status": "ok",
         "total_mrr": total_mrr,

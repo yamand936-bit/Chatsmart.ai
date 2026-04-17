@@ -52,6 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations('merchant');
   const tLayout = useTranslations('layout');
   const [businessType, setBusinessType] = useState('retail');
+  const [announcement, setAnnouncement] = useState('');
   const router = require('next/navigation').useRouter();
   const pathname = require('next/navigation').usePathname();
 
@@ -67,6 +68,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
+
+    axios.get(`/api/system/system/announcement`)
+      .then(res => {
+        if (res.data?.message) setAnnouncement(res.data.message);
+      })
+      .catch(() => {});
   }, [pathname, router]);
 
 
@@ -75,6 +82,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <RoleGuard requiredRole="merchant">
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
         <Toaster position="top-center" reverseOrder={false} />
+        {announcement && (
+           <div className="bg-red-600 text-white text-center py-2 px-4 shadow font-bold text-sm z-50 sticky top-0 uppercase tracking-wide flex justify-center items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+              {announcement}
+           </div>
+        )}
         <header className="bg-[var(--primary-color,#1e293b)] dark:bg-slate-950 shadow px-6 py-4 flex justify-between items-center text-white relative z-30">
           <div className="flex items-center gap-3">
              <h1 className="font-bold text-xl text-white print-hidden">{t('title')}</h1>

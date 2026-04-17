@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.settings_service import SettingsService
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, redis_client
 
 router = APIRouter(prefix="/system", tags=["System"])
 
@@ -58,3 +58,13 @@ async def update_settings(payload: dict, db: AsyncSession = Depends(get_db), adm
         await SettingsService.set(db, key, str(value))
     await db.commit()
     return {"status": "updated"}
+
+@router.get("/announcement")
+async def get_announcement():
+    try:
+        msg = await redis_client.get("system:announcement")
+        if isinstance(msg, bytes):
+            msg = msg.decode("utf-8")
+        return {"status": "ok", "message": msg if msg else ""}
+    except Exception:
+        return {"status": "ok", "message": ""}

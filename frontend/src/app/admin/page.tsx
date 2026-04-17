@@ -495,6 +495,7 @@ export default function AdminDashboard() {
             <StatCard title={'MRR'} value={`$${metrics.mrr || 0}`} icon="💰" />
             <StatCard title={'Requests/Day'} value={metrics.ai_requests_today || 0} icon="⚡" 
                trend={metrics.sparklines?.requests} />
+            <StatCard title={'Webhook Health'} value={`${metrics.webhook_delivery_rate !== undefined ? metrics.webhook_delivery_rate : 100}%`} icon="❤️‍🩹" />
           </div>
         )}
         
@@ -639,6 +640,7 @@ export default function AdminDashboard() {
                     <th className="py-4 font-semibold px-2 text-start">
                       <input type="checkbox" onChange={toggleAll} checked={businesses.length > 0 && selectedIds.length === businesses.length} />
                     </th>
+                      <th className="py-4 px-2 font-semibold">Last Active</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.name')}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.owner_email')}</th>
                     <th className="py-4 font-semibold px-2 text-start">Profit Margin</th>
@@ -667,6 +669,7 @@ export default function AdminDashboard() {
                         <div className="text-xs text-slate-500 font-normal mt-0.5 capitalize">{b.plan_name || 'Free'}</div>
                       </td>
                       <td className="py-4 px-2 text-slate-600">{b.owner_email}</td>
+                      <td className="py-4 px-2 text-slate-500 text-xs">{b.last_active ? new Date(b.last_active).toLocaleString() : 'Never'}</td>
                       <td className="py-4 px-2">
                         <span className={`font-semibold ${b.profit_margin < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           ${b.profit_margin}
@@ -820,6 +823,13 @@ export default function AdminDashboard() {
                 {creating && <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
                 {creating ? tCommon('loading') : (editingBusinessId ? (tAdmin('table.update') || 'Update') : tCommon('submit'))}
               </button>
+                <div className="mt-6 border-t border-red-300 pt-4">
+                  <h4 className="flex items-center gap-2 font-bold text-red-800 mb-2">📢 Global Announcement Banner</h4>
+                  <input type="text" id="announcementInput" className="w-full border p-2 rounded mb-2 text-black bg-white" placeholder="e.g. System upgrade in 5 minutes!..." />
+                  <button onClick={() => { const val = (document.getElementById('announcementInput') as HTMLInputElement).value; axios.post('/api/admin/system/announcement', {message: val}, {withCredentials: true}).then(()=>alert('Broadcasted!')).catch(()=>alert('Failed')); }} className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 block">
+                    Broadcast Banner
+                  </button>
+                </div>
             </div>
           </form>
         )}
@@ -954,6 +964,13 @@ export default function AdminDashboard() {
                >
                  {maintenanceEnabled ? 'Deactivate Maintenance Mode' : 'Activate Maintenance Mode'}
                </button>
+                <div className="mt-6 border-t border-red-300 pt-4">
+                  <h4 className="flex items-center gap-2 font-bold text-red-800 mb-2">📢 Global Announcement Banner</h4>
+                  <input type="text" id="announcementInput" className="w-full border p-2 rounded mb-2 text-black bg-white" placeholder="e.g. System upgrade in 5 minutes!..." />
+                  <button onClick={() => { const val = (document.getElementById('announcementInput') as HTMLInputElement).value; axios.post('/api/admin/system/announcement', {message: val}, {withCredentials: true}).then(()=>alert('Broadcasted!')).catch(()=>alert('Failed')); }} className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 block">
+                    Broadcast Banner
+                  </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1042,6 +1059,13 @@ export default function AdminDashboard() {
               >
                 {savingSettings ? 'Saving...' : (tSystem('save') || 'Save Settings')}
               </button>
+                <div className="mt-6 border-t border-red-300 pt-4">
+                  <h4 className="flex items-center gap-2 font-bold text-red-800 mb-2">📢 Global Announcement Banner</h4>
+                  <input type="text" id="announcementInput" className="w-full border p-2 rounded mb-2 text-black bg-white" placeholder="e.g. System upgrade in 5 minutes!..." />
+                  <button onClick={() => { const val = (document.getElementById('announcementInput') as HTMLInputElement).value; axios.post('/api/admin/system/announcement', {message: val}, {withCredentials: true}).then(()=>alert('Broadcasted!')).catch(()=>alert('Failed')); }} className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700 block">
+                    Broadcast Banner
+                  </button>
+                </div>
             </div>
           </div>
         )}
