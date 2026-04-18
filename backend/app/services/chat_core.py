@@ -392,7 +392,6 @@ async def process_chat_core(
                             
                             # Alert the merchant about the new order immediately
                             import asyncio
-                            from app.services.notification_service import NotificationService
                             from app.models.business import BusinessFeature
                             tg_feat = await db.execute(select(BusinessFeature).where(
                                 BusinessFeature.business_id == business_id, BusinessFeature.feature_type == "telegram"))
@@ -539,7 +538,7 @@ async def process_chat_core(
     except Exception as e:
         import traceback
         tb_str = traceback.format_exc()
-        logger.error(f"AI processing failed: {e}\n{tb_str}")
+        logger.error(f"AI processing failed: {e}", exc_info=True)
         try:
             error_log = SystemErrorLog(
                 business_id=business_id,

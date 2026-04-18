@@ -346,7 +346,7 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
             await transmit_telegram(config.get("bot_token", ""), chat_id, ai_response or "", smart_cards=smart_cards)
         return {"status": "success"}
     except Exception as e:
-        logger.error(f"Telegram core logic fail: {e}")
+        logger.error(f"Telegram core logic fail: {e}", exc_info=True)
         # Always return 200 so Telegram stops retrying
         return {"status": "error_handled"}
 
