@@ -17,7 +17,9 @@ class Customer(BaseModel):
     external_id: Mapped[str] = mapped_column(String(255))
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     tags: Mapped[List | None] = mapped_column(JSON, default=list, nullable=True)
+    custom_fields: Mapped[dict | None] = mapped_column(JSON, default=dict, nullable=True)
 
     business: Mapped["Business"] = relationship("Business", back_populates="customers")
     conversations: Mapped[List["Conversation"]] = relationship("Conversation", back_populates="customer", cascade="all, delete-orphan")

@@ -280,6 +280,17 @@ async def process_chat_core(
     else:
         crm_vars = {}
         
+    if flow_res.get("flow_captured_variable") and crm_vars:
+        from app.services.crm_sync import sync_crm_variables
+        from app.db.session import async_session_maker
+        import asyncio
+        
+        async def run_crm_sync(c_id, vars_dict):
+            async with async_session_maker() as session:
+                await sync_crm_variables(session, str(c_id), vars_dict)
+                
+        asyncio.create_task(run_crm_sync(customer.id, crm_vars))
+        
     ai_engine = AIEngineService(
         business_id=str(business.id),
         business_type=business.business_type, 
