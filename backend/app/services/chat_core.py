@@ -274,7 +274,7 @@ async def process_chat_core(
     from app.services.funnel_state import FunnelStateService
     current_funnel_state = await FunnelStateService.get_state(str(conversation.id))
     from app.api.deps import redis_client
-    crm_vars = await redis_client.hgetall(f"crm_vars:{conversation.id}")
+    crm_vars = await redis_client.hgetall(f"crm_vars:{session_target}")
     if isinstance(crm_vars, dict) and crm_vars:
         crm_vars = {k.decode('utf-8') if isinstance(k, bytes) else k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in crm_vars.items()}
     else:
@@ -305,7 +305,14 @@ async def process_chat_core(
     smart_cards = []
     try:
         start_time = time.time()
-        raw_res = await ai_engine.get_response(db, content, conversation, media_b64=media_b64, user_msg_id=user_msg.id)
+        raw_res = await ai_engine.get_response(
+            db, 
+            content, 
+            conversation, 
+            media_b64=media_b64, 
+            user_msg_id=user_msg.id, 
+            skip_rag=flow_res.get("flow_captured_variable", False)
+        )
         resp_time = time.time() - start_time
         
         ai_intent = ai_engine.validate_intent(raw_res["ai_output"])

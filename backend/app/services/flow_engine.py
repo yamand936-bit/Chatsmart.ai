@@ -112,6 +112,7 @@ class FlowEngine:
                     if var_name:
                         var_key = f"crm_vars:{conversation_id}"
                         await redis_client.hset(var_key, var_name, content)
+                        output["flow_captured_variable"] = True
                     
                     next_nodes = node.get("next", [])
                     if len(next_nodes) > 0:

@@ -30,7 +30,7 @@ class AIEngineService:
         self.ai_instructions = ai_instructions
         self.flow_vars = flow_vars or {}
 
-    async def generate_system_prompt(self, db, user_message: str = None) -> str:
+    async def generate_system_prompt(self, db, user_message: str = None, skip_rag: bool = False) -> str:
         from app.services.prompt_factory import DomainPromptFactory
         from app.services.availability_service import AvailabilityService
         from app.services.knowledge_service import search_knowledge
@@ -51,7 +51,7 @@ class AIEngineService:
         now_ast = now_utc + datetime.timedelta(hours=3)
         date_str_today = now_ast.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S (AST/Turkey Time)")
 
-        if user_message:
+        if user_message and not skip_rag:
             try:
                 knowledge_context_str = await search_knowledge(db, uuid.UUID(str(self.business_id)), user_message, top_k=5)
             except Exception as e:
@@ -83,7 +83,7 @@ class AIEngineService:
         lower_text = str(text).lower()
         return not any(phrase in lower_text for phrase in forbidden_phrases)
 
-    async def get_response(self, db, user_message: str, conversation=None, media_b64: str = None, user_msg_id=None) -> dict:
+    async def get_response(self, db, user_message: str, conversation=None, media_b64: str = None, user_msg_id=None, skip_rag: bool = False) -> dict:
         from app.services.ai_router import AIRouter
         import hashlib
         from app.core.redis_client import redis_client
@@ -103,7 +103,7 @@ class AIEngineService:
         if not self.funnel_state and len(lower_msg) < 50 and not any(kw in lower_msg for kw in ["buy", "order", "book", "cancel", "شراء", "حجز", "إلغاء", "بكم", "سعر", "price", "how much"]):
             is_simple = True
 
-        system_prompt = await self.generate_system_prompt(db, user_message)
+        system_prompt = await self.generate_system_prompt(db, user_message, skip_rag=skip_rag)
         messages = [{"role": "system", "content": system_prompt}]
 
         history_count = 0
