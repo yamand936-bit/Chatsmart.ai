@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useRef, useCallback } from 'react';
 import {
   ReactFlow,
@@ -135,7 +135,7 @@ const Flow = ({ onClose, onSave, defaultUiState }: { onClose: () => void, onSave
         setNodes((nds: any) =>
           nds.map((node: any) => {
             if (node.id === newNodeId) {
-              node.data = { ...node.data, [key]: value };
+              return { ...node, data: { ...node.data, [key]: value } };
             }
             return node;
           })
@@ -161,7 +161,7 @@ const Flow = ({ onClose, onSave, defaultUiState }: { onClose: () => void, onSave
         setNodes((nds: any) =>
           nds.map((node: any) => {
             if (node.id === n.id) {
-              node.data = { ...node.data, [key]: value };
+              return { ...node, data: { ...node.data, [key]: value } };
             }
             return node;
           })
