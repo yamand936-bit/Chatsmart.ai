@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useRef, useCallback } from 'react';
 import {
   ReactFlow,
@@ -279,5 +279,3 @@ export default function VisualFlowBuilder(props: any) {
     </ReactFlowProvider>
   );
 }
-/ /   f o r c e   p u s h   U I  
- 
