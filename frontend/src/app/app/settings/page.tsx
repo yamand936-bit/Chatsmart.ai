@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslations } from 'next-intl';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
 
+const VisualFlowBuilder = dynamic(() => import('@/components/VisualFlowBuilder'), { ssr: false });
 export default function SettingsPage() {
     const t = useTranslations('settings');
     const tCommon = useTranslations('common');
@@ -248,73 +250,29 @@ export default function SettingsPage() {
                 </div>
 
                 {showFlowForm && editingFlow && (
-                    <div className="mb-6 p-4 border rounded-lg bg-indigo-50 border-indigo-100">
-                        <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-bold text-slate-800">{editingFlow.id ? tCommon('edit') : t('newFlow')}</h4>
-                            <button onClick={() => setShowFlowForm(false)} className="text-slate-500 hover:text-slate-700">✕</button>
-                        </div>
-                        <div className="flex gap-4 mb-4">
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('flowName')}</label>
-                                <input type="text" value={editingFlow.name} onChange={e => setEditingFlow({...editingFlow, name: e.target.value})} className="w-full rounded border p-2 text-sm outline-none focus:border-indigo-500" />
-                            </div>
-                            <div className="flex items-center gap-2 mt-5">
-                                <input type="checkbox" checked={editingFlow.is_active} onChange={e => setEditingFlow({...editingFlow, is_active: e.target.checked})} className="w-4 h-4 cursor-pointer" />
-                                <label className="text-sm font-medium text-slate-700">Active</label>
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-3 mb-4">
-                            <label className="block text-xs font-semibold text-slate-700">{t('flowRules')}</label>
-                            {editingFlow.rules.map((rule: any, idx: number) => (
-                                <div key={idx} className="flex flex-col md:flex-row gap-2 bg-white p-3 rounded border shadow-sm items-start md:items-center">
-                                    <div className="flex-1">
-                                        <input type="text" placeholder={t('triggerKeyword')} value={rule.trigger} onChange={e => {
-                                            const newR = [...editingFlow.rules]; newR[idx].trigger = e.target.value; setEditingFlow({...editingFlow, rules: newR});
-                                        }} className="w-full rounded border border-slate-200 p-2 text-sm outline-none" />
-                                    </div>
-                                    <div className="shrink-0">
-                                        <select value={rule.match} onChange={e => {
-                                            const newR = [...editingFlow.rules]; newR[idx].match = e.target.value; setEditingFlow({...editingFlow, rules: newR});
-                                        }} className="rounded border border-slate-200 p-2 text-sm outline-none bg-slate-50">
-                                            <option value="contains">Contains</option>
-                                            <option value="exact">Exact Match</option>
-                                            <option value="starts_with">Starts With</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex-1">
-                                        <textarea placeholder={t('responseText')} value={rule.response} onChange={e => {
-                                            const newR = [...editingFlow.rules]; newR[idx].response = e.target.value; setEditingFlow({...editingFlow, rules: newR});
-                                        }} className="w-full rounded border border-slate-200 p-2 text-sm outline-none h-[38px] resize-none" />
-                                    </div>
-                                    <button onClick={() => {
-                                        const newR = [...editingFlow.rules]; newR.splice(idx, 1); setEditingFlow({...editingFlow, rules: newR});
-                                    }} className="text-red-500 hover:bg-red-50 p-2 rounded">
-                                        ✕
-                                    </button>
-                                </div>
-                            ))}
-                            <button onClick={() => setEditingFlow({...editingFlow, rules: [...editingFlow.rules, {trigger: '', match: 'contains', response: ''}]})} className="text-indigo-600 text-sm font-medium hover:underline">
-                                + {t('addRule')}
-                            </button>
-                        </div>
-
-                        <div className="flex justify-end">
-                            <button onClick={async () => {
+                    <div className="mb-6 h-[700px] rounded-2xl w-full relative">
+                        <VisualFlowBuilder 
+                            onClose={() => setShowFlowForm(false)} 
+                            defaultUiState={editingFlow.flow_ui_state}
+                            onSave={async (data: any) => {
                                 try {
+                                    const payload = {
+                                        ...editingFlow,
+                                        ...data,
+                                        name: editingFlow.name || 'AI Flow ' + Math.floor(Math.random() * 1000),
+                                        rules: editingFlow.rules || []
+                                    };
                                     if(editingFlow.id) {
-                                        await axios.put(`/api/merchant/flows/${editingFlow.id}`, editingFlow, { withCredentials: true });
+                                        await axios.put(`/api/merchant/flows/${editingFlow.id}`, payload, { withCredentials: true });
                                     } else {
-                                        await axios.post(`/api/merchant/flows`, editingFlow, { withCredentials: true });
+                                        await axios.post(`/api/merchant/flows`, payload, { withCredentials: true });
                                     }
-                                    toast.success(t('saved'));
+                                    toast.success(tCommon('save') || 'Saved successfully');
                                     setShowFlowForm(false);
                                     axios.get(`/api/merchant/flows`, { withCredentials: true }).then(res => setBotFlows(res.data.data));
                                 } catch(e) { toast.error("Error saving flow"); }
-                            }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition">
-                                {t('saveFlow')}
-                            </button>
-                        </div>
+                            }}
+                        />
                     </div>
                 )}
 

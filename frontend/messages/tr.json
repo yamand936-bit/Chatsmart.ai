@@ -345,5 +345,28 @@
     "instructions_label": "Kampanya Talimatları ve Teklifler",
     "instructions_placeholder": "Örnek: Müşteriye sorduğu ürünlerde %20 indirim olduğunu söyleyin ve EID20 kodunu kullanmasını isteyin.",
     "launching_btn": "Başlatılıyor..."
+  },
+  "builder": {
+    "trigger_node_title": "Tetikleyici Kelime",
+    "action_node_title": "Eylem / Yanıt",
+    "ai_handover_title": "Yapay Zeka Devri",
+    "placeholder": "Buraya yazın...",
+    "drag_trigger": "Tetikleyici",
+    "drag_action": "Eylem",
+    "drag_ai": "Yapay Zeka",
+    "canvas_title": "Görsel Akış Yapılandırıcı",
+    "canvas_desc": "Akıllı yanıt akışları oluşturmak için düğümleri sürükleyip bırakın.",
+    "save_flow": "Akışı Kaydet",
+    "tone_label": "Bot Tonu",
+    "tone_professional": "Profesyonel",
+    "tone_friendly": "Arkadaşça",
+    "tone_humorous": "Mizahi",
+    "tone_urgent": "Acil",
+    "err_no_trigger": "Kaydedilemiyor. En az bir Tetikleyici (Trigger) düğümü olmalıdır.",
+    "err_dead_end": "Uyarı: Akışta hiçbir yere çıkmayan bir Eylem (Action) düğümü var.",
+    "err_floating_node": "Kaydedilemiyor. Ana akıştan kopuk, bağlantısız düğümler mevcut.",
+    "wait_node_title": "Yanıt Bekle",
+    "drag_wait": "Yanıt Bekle",
+    "var_label": "Kaydedilecek değişken"
   }
 }

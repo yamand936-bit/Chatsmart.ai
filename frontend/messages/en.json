@@ -346,5 +346,28 @@
     "instructions_label": "Campaign Instructions & Offers",
     "instructions_placeholder": "Example: Tell the customer we have a 20% discount on the products they asked about, and ask them to use code DISCOUNT20.",
     "launching_btn": "Launching..."
+  },
+  "builder": {
+    "trigger_node_title": "Trigger Keyword",
+    "action_node_title": "Action / Response",
+    "ai_handover_title": "AI Conversational Handover",
+    "placeholder": "Type here...",
+    "drag_trigger": "Trigger",
+    "drag_action": "Action",
+    "drag_ai": "AI Handover",
+    "canvas_title": "AI Routing Visual Builder",
+    "canvas_desc": "Drag and drop nodes from the sidebar to build smart response flows.",
+    "save_flow": "Save Flow",
+    "tone_label": "Bot Tone",
+    "tone_professional": "Professional",
+    "tone_friendly": "Friendly",
+    "tone_humorous": "Humorous",
+    "tone_urgent": "Urgent",
+    "err_no_trigger": "Cannot save. You must have at least one Trigger Node.",
+    "err_dead_end": "Warning: Flow contains an Action node that leads nowhere (Dead End).",
+    "err_floating_node": "Cannot save. Some nodes are disconnected from the main flow.",
+    "wait_node_title": "Wait for Input",
+    "drag_wait": "Wait / Input",
+    "var_label": "Variable to save in"
   }
 }

@@ -237,53 +237,39 @@ async def process_chat_core(
 
         return ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), []
 
-    # ── 5.6. Check NO-CODE Bot Flows (keyword overrides AI) ───────────────────
-    from app.models.bot_flow import BotFlow
-    from sqlalchemy.future import select
-    flows_res = await db.execute(
-        select(BotFlow).where(
-            BotFlow.business_id == business_id,
-            BotFlow.is_active == True
-        ).order_by(BotFlow.priority.desc())
-    )
-    active_flows = flows_res.scalars().all()
-    msg_lower = content.strip().lower()
-
-    for flow in active_flows:
-        for rule in (flow.rules or []):
-            trigger = rule.get("trigger", "").lower().strip()
-            if not trigger: continue
-            match = rule.get("match", "contains")
+    # ── 5.6. Evaluate State Machine & Flow Engine ──────────────────────────────
+    from app.services.flow_engine import FlowEngine
+    session_target = external_id if customer_platform == "telegram" else str(conversation.id)
+    flow_res = await FlowEngine.evaluate_message(db, business_id, session_target, content)
+    
+    if flow_res["handled"] and not flow_res["ai_handoff"]:
+        if flow_res["response"]:
+            # Save Bot Message
+            bot_msg = Message(
+                business_id=business_id,
+                conversation_id=conversation.id,
+                sender_type="bot",
+                content=flow_res["response"],
+                intent=flow_res["intent"],
+                model_used="bot_flow",
+                token_count=0 
+            )
+            db.add(bot_msg)
+            await db.commit()
+            await db.refresh(user_msg)
             
-            is_match = False
-            if match == "exact" and msg_lower == trigger:
-                is_match = True
-            elif match == "contains" and trigger in msg_lower:
-                is_match = True
-            elif match == "starts_with" and msg_lower.startswith(trigger):
-                is_match = True
-                
-            if is_match:
-                response_text = rule.get("response", "")
-                
-                # Save Bot Message
-                bot_msg = Message(
-                    business_id=business_id,
-                    conversation_id=conversation.id,
-                    sender_type="bot",
-                    content=response_text,
-                    intent="flow_match",
-                    model_used="bot_flow",
-                    token_count=0 
-                )
-                db.add(bot_msg)
-                await db.commit()
-                await db.refresh(user_msg)
-                
-                return response_text, "flow_match", str(user_msg.id), str(conversation.id), []
+            return flow_res["response"], flow_res["intent"], str(user_msg.id), str(conversation.id), []
+        else:
+            # E.g., wait_for_input capturing state implicitly without reply
+            return "", flow_res["intent"], str(user_msg.id), str(conversation.id), []
 
     # ── 6. Call AI engine ─────────────────────────────────────────────────────
     detected_lang = detect_language(content)
+    
+    # ── 6.1 Tone Injection from Flow ──
+    dynamic_tone = business.ai_tone
+    if flow_res["ai_handoff"] and flow_res["ai_tone"]:
+        dynamic_tone = flow_res["ai_tone"]
     
     from app.services.funnel_state import FunnelStateService
     current_funnel_state = await FunnelStateService.get_state(str(conversation.id))
@@ -294,7 +280,7 @@ async def process_chat_core(
         products=products, 
         funnel_state=current_funnel_state,
         language=detected_lang,
-        ai_tone=business.ai_tone,
+        ai_tone=dynamic_tone,
         knowledge_base=business.knowledge_base,
         bank_details=business.bank_details,
         is_tiktok_comment=is_comment,

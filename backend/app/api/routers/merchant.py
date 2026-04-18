@@ -1166,6 +1166,8 @@ class BotFlowCreate(BaseModel):
     is_active: bool = True
     priority: int = 0
     rules: List[BotFlowRuleSchema] = []
+    flow_ui_state: Optional[dict] = None
+    flow_logic_state: Optional[dict] = None
 
 @router.get("/flows")
 async def list_flows(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
@@ -1174,7 +1176,9 @@ async def list_flows(business_id: uuid.UUID = Depends(get_merchant_tenant), db: 
     flows = res.scalars().all()
     return {"status": "ok", "data": [
         {"id": str(f.id), "name": f.name, "is_active": f.is_active,
-         "priority": f.priority, "rules": f.rules, "created_at": str(f.created_at)}
+         "priority": f.priority, "rules": f.rules, 
+         "flow_ui_state": f.flow_ui_state, "flow_logic_state": f.flow_logic_state,
+         "created_at": str(f.created_at)}
         for f in flows
     ]}
 
@@ -1186,7 +1190,9 @@ async def create_flow(payload: BotFlowCreate, business_id: uuid.UUID = Depends(g
         name=payload.name,
         is_active=payload.is_active,
         priority=payload.priority,
-        rules=[r.dict() for r in payload.rules]
+        rules=[r.dict() for r in payload.rules],
+        flow_ui_state=payload.flow_ui_state,
+        flow_logic_state=payload.flow_logic_state
     )
     db.add(flow)
     await db.commit()
@@ -1203,6 +1209,10 @@ async def update_flow(flow_id: str, payload: BotFlowCreate, business_id: uuid.UU
     flow.is_active = payload.is_active
     flow.priority = payload.priority
     flow.rules = [r.dict() for r in payload.rules]
+    if payload.flow_ui_state is not None:
+        flow.flow_ui_state = payload.flow_ui_state
+    if payload.flow_logic_state is not None:
+        flow.flow_logic_state = payload.flow_logic_state
     db.add(flow)
     await db.commit()
     return {"status": "ok"}
@@ -1217,6 +1227,38 @@ async def delete_flow(flow_id: str, business_id: uuid.UUID = Depends(get_merchan
     await db.delete(flow)
     await db.commit()
     return {"status": "ok"}
+
+class SimulateFlowRequest(BaseModel):
+    message: str
+    session_id: str
+    flow_logic_state: dict
+
+@router.post("/flows/simulate")
+async def simulate_flow(
+    payload: SimulateFlowRequest, 
+    business_id: uuid.UUID = Depends(get_merchant_tenant), 
+    db: AsyncSession = Depends(get_db)
+):
+    from app.services.flow_engine import FlowEngine
+    res = await FlowEngine.evaluate_message(
+        db, 
+        business_id, 
+        payload.session_id, 
+        payload.message, 
+        simulate_state=payload.flow_logic_state
+    )
+    if res["handled"] and not res["ai_handoff"]:
+        return {"status": "ok", "response": res["response"], "intent": res["intent"]}
+    
+    tone_str = res.get("ai_tone") or "tone_professional"
+    tone_map = {
+        "tone_humorous": "Ha ha! That's a great question. Let me help you with that! 😂",
+        "tone_urgent": "CRITICAL UPDATE: I am processing your request immediately! 🚨",
+        "tone_friendly": "Hello there! Let's get that sorted out for you! 😊",
+        "tone_professional": "Good day. I will professionally assist you with this transaction. 📋"
+    }
+    simulated_ai = tone_map.get(tone_str, tone_map["tone_professional"])
+    return {"status": "ok", "response": f"[Simulated AI Handover - {tone_str.replace('tone_','').capitalize()}]\n{simulated_ai}", "intent": "ai_handoff"}
 
 from fastapi import UploadFile, File
 
