@@ -20,7 +20,7 @@ export const TriggerNode = ({ data, isConnectable }: any) => {
       <div className="p-4">
         <input 
           autoFocus={data.autoFocus}
-          className="w-full text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 dark:text-slate-100 placeholder-slate-400"
+          className="nodrag w-full text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 dark:text-slate-100 placeholder-slate-400"
           placeholder={t('placeholder')}
           value={data.triggerKeyword || ''}
           onChange={(e) => data.onChange && data.onChange('triggerKeyword', e.target.value)}
@@ -61,7 +61,7 @@ export const ActionNode = ({ data, isConnectable }: any) => {
       <div className="p-4">
         <textarea 
           autoFocus={data.autoFocus}
-          className="w-full min-h-[60px] text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-y"
+          className="nodrag w-full min-h-[60px] text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-y"
           placeholder={t('placeholder')}
           value={data.responseText || ''}
           onChange={(e) => data.onChange && data.onChange('responseText', e.target.value)}
@@ -102,7 +102,7 @@ export const AIHandoverNode = ({ data, isConnectable }: any) => {
       <div className="p-4 bg-gradient-to-b from-violet-50 to-white dark:from-slate-800 dark:to-slate-800">
         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">{t('tone_label') || 'Tone'}</label>
         <select
-          className="w-full mb-3 text-sm px-3 py-2 border border-violet-200 dark:border-violet-800/50 bg-white dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 cursor-pointer"
+          className="nodrag w-full mb-3 text-sm px-3 py-2 border border-violet-200 dark:border-violet-800/50 bg-white dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 cursor-pointer"
           value={data.tone || 'tone_professional'}
           onChange={(e) => data.onChange && data.onChange('tone', e.target.value)}
         >
@@ -115,7 +115,7 @@ export const AIHandoverNode = ({ data, isConnectable }: any) => {
         <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">AI Context</div>
         <textarea 
           autoFocus={data.autoFocus}
-          className="w-full min-h-[60px] text-sm px-3 py-2 border border-violet-200 dark:border-violet-800/50 bg-white dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-y"
+          className="nodrag w-full min-h-[60px] text-sm px-3 py-2 border border-violet-200 dark:border-violet-800/50 bg-white dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-y"
           placeholder={t('placeholder') + " (Optional)"}
           value={data.aiInstructions || ''}
           onChange={(e) => data.onChange && data.onChange('aiInstructions', e.target.value)}
@@ -157,7 +157,7 @@ export const WaitNode = ({ data, isConnectable }: any) => {
         <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 tracking-wide">{t('var_label') || 'Variable name'}</label>
         <input 
           autoFocus={data.autoFocus}
-          className="w-full text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800 dark:text-slate-100 placeholder-slate-400"
+          className="nodrag w-full text-sm px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-800 dark:text-slate-100 placeholder-slate-400"
           placeholder="e.g. budget, name"
           value={data.variableName || ''}
           onChange={(e) => data.onChange && data.onChange('variableName', e.target.value)}
