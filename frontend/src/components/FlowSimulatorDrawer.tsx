@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Bot } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import axios from '@/lib/axios';
+import axios from 'axios';
 
 export default function FlowSimulatorDrawer({ isOpen, onClose, flowGraph }: any) {
   const [messages, setMessages] = useState<{id: string, role: string, content: string}[]>([]);
