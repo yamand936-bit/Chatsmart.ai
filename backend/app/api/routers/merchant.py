@@ -1263,12 +1263,22 @@ async def simulate_flow(
     tone_str = res.get("ai_tone") or (business.ai_tone if business else "Professional")
     tone_clean = tone_str.replace('tone_','').capitalize()
     
+    from app.api.deps import redis_client
+    
+    crm_vars = await redis_client.hgetall(f"crm_vars:{payload.session_id}")
+    if isinstance(crm_vars, dict) and crm_vars:
+        crm_vars = {k.decode('utf-8') if isinstance(k, bytes) else k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in crm_vars.items()}
+    else:
+        crm_vars = {}
+    
     ai_engine = AIEngineService(
         business_id=str(business_id),
         business_type=business.business_type if business else "retail",
         products=products,
         language="ar",
         ai_tone=tone_clean,
+        ai_instructions=res.get("ai_instructions", ""),
+        flow_vars=crm_vars,
         knowledge_base=business.knowledge_base if business else ""
     )
     

@@ -77,6 +77,7 @@ class FlowEngine:
                 elif n_type == "ai_handover":
                     output["ai_handoff"] = True
                     output["ai_tone"] = payload.get("tone", "tone_professional")
+                    output["ai_instructions"] = payload.get("aiInstructions", "")
                     await redis_client.delete(session_key)
                     break
                 else:

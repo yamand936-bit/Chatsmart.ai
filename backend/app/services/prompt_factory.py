@@ -15,8 +15,11 @@ class DomainPromptFactory:
         language: str,
         ai_tone: str,
         date_str_today: str,
-        funnel_state: dict
+        funnel_state: dict,
+        ai_instructions: str = "",
+        flow_vars: dict = None
     ) -> str:
+        if flow_vars is None: flow_vars = {}
         
         # Ground Truth from Redis (Funnel State)
         ground_truth = []
@@ -27,6 +30,8 @@ class DomainPromptFactory:
         if funnel_state.get('staff_name'): ground_truth.append(f"Chosen Staff: {funnel_state['staff_name']}")
         
         ground_truth_str = "\n".join(ground_truth) if ground_truth else "No confirmed info yet."
+        flow_vars_str = "\n".join([f"- {k}: {v}" for k, v in flow_vars.items()]) if flow_vars else "None"
+        custom_instructions = f"\n=== SCENARIO INSTRUCTIONS ===\n{ai_instructions}\n" if ai_instructions else ""
 
         prompt = f"""Current Server Date/Time: {date_str_today}
 
@@ -42,9 +47,12 @@ Availability: {availability_info}
 Knowledge Base: {knowledge_base}
 Payment Info: {payment_info}
 
+Collected Flow Variables (Use these organically):
+{flow_vars_str}
+
 Currently Confirmed Details (Do not ask for these again):
 {ground_truth_str}
-
+{custom_instructions}
 === CRITICAL OPERATIONAL GUIDELINES ===
 1. LANGUAGE: Match the user's language strictly. If the user speaks Turkish, reply in Turkish. If Arabic, reply in Arabic.
 2. TONE: {ai_tone}. Be conversational, highly intelligible, and natural. Do NOT act like a rigid robot.

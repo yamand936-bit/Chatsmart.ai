@@ -273,7 +273,13 @@ async def process_chat_core(
     
     from app.services.funnel_state import FunnelStateService
     current_funnel_state = await FunnelStateService.get_state(str(conversation.id))
-    
+    from app.api.deps import redis_client
+    crm_vars = await redis_client.hgetall(f"crm_vars:{conversation.id}")
+    if isinstance(crm_vars, dict) and crm_vars:
+        crm_vars = {k.decode('utf-8') if isinstance(k, bytes) else k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in crm_vars.items()}
+    else:
+        crm_vars = {}
+        
     ai_engine = AIEngineService(
         business_id=str(business.id),
         business_type=business.business_type, 
@@ -281,6 +287,8 @@ async def process_chat_core(
         funnel_state=current_funnel_state,
         language=detected_lang,
         ai_tone=dynamic_tone,
+        ai_instructions=flow_res.get("ai_instructions", ""),
+        flow_vars=crm_vars,
         knowledge_base=business.knowledge_base,
         bank_details=business.bank_details,
         is_tiktok_comment=is_comment,

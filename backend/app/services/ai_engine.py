@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AIEngineService:
-    def __init__(self, business_id: str, business_type: str, products: List[Product], funnel_state: dict = None, language: str = "en", ai_tone: str = "Professional", knowledge_base: str = None, bank_details: dict = None, is_tiktok_comment: bool = False, platform: str = "unknown", customer_name: str = None, customer_phone: str = None, staff_members: list = None):
+    def __init__(self, business_id: str, business_type: str, products: List[Product], funnel_state: dict = None, language: str = "en", ai_tone: str = "Professional", knowledge_base: str = None, bank_details: dict = None, is_tiktok_comment: bool = False, platform: str = "unknown", customer_name: str = None, customer_phone: str = None, staff_members: list = None, ai_instructions: str = "", flow_vars: dict = None):
         self.business_id = business_id
         self.business_type = business_type
         self.is_tiktok_comment = is_tiktok_comment
@@ -27,6 +27,8 @@ class AIEngineService:
         self.knowledge_base = knowledge_base or 'No specific knowledge base provided.'
         self.bank_details = bank_details
         self.staff_members = staff_members or []
+        self.ai_instructions = ai_instructions
+        self.flow_vars = flow_vars or {}
 
     async def generate_system_prompt(self, db, user_message: str = None) -> str:
         from app.services.prompt_factory import DomainPromptFactory
@@ -70,7 +72,9 @@ class AIEngineService:
             language=self.language,
             ai_tone=self.ai_tone,
             date_str_today=date_str_today,
-            funnel_state=self.funnel_state
+            funnel_state=self.funnel_state,
+            ai_instructions=self.ai_instructions,
+            flow_vars=self.flow_vars
         )
 
     def validate_input(self, text: str) -> bool:
