@@ -1250,15 +1250,36 @@ async def simulate_flow(
     if res["handled"] and not res["ai_handoff"]:
         return {"status": "ok", "response": res["response"], "intent": res["intent"]}
     
-    tone_str = res.get("ai_tone") or "tone_professional"
-    tone_map = {
-        "tone_humorous": "Ha ha! That's a great question. Let me help you with that! 😂",
-        "tone_urgent": "CRITICAL UPDATE: I am processing your request immediately! 🚨",
-        "tone_friendly": "Hello there! Let's get that sorted out for you! 😊",
-        "tone_professional": "Good day. I will professionally assist you with this transaction. 📋"
-    }
-    simulated_ai = tone_map.get(tone_str, tone_map["tone_professional"])
-    return {"status": "ok", "response": f"[Simulated AI Handover - {tone_str.replace('tone_','').capitalize()}]\n{simulated_ai}", "intent": "ai_handoff"}
+    from app.services.ai_engine import AIEngineService
+    from app.models.business import Business
+    from app.models.domain import Product
+    
+    b_res = await db.execute(select(Business).where(Business.id == business_id))
+    business = b_res.scalar_one_or_none()
+    
+    p_res = await db.execute(select(Product).where(Product.business_id == business_id, Product.is_active == True).limit(20))
+    products = p_res.scalars().all()
+    
+    tone_str = res.get("ai_tone") or (business.ai_tone if business else "Professional")
+    tone_clean = tone_str.replace('tone_','').capitalize()
+    
+    ai_engine = AIEngineService(
+        business_id=str(business_id),
+        business_type=business.business_type if business else "retail",
+        products=products,
+        language="ar",
+        ai_tone=tone_clean,
+        knowledge_base=business.knowledge_base if business else ""
+    )
+    
+    try:
+        ai_res = await ai_engine.get_response(db, payload.message)
+        intent_schema = ai_engine.validate_intent(ai_res["ai_output"])
+        live_text = intent_schema.response
+    except Exception as e:
+        live_text = f"AI Engine Exception: {str(e)}"
+        
+    return {"status": "ok", "response": live_text, "intent": "ai_handoff"}
 
 from fastapi import UploadFile, File
 
