@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import CustomersList from '@/components/crm/CustomersList';
 import KanbanBoard from '@/components/crm/KanbanBoard';
-import CalendarView from '@/components/crm/CalendarView';
-import { Users, KanbanSquare, Calendar } from 'lucide-react';
+import { Users, KanbanSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function CRMRootPage() {
   const t = useTranslations('layout');
-  const [activeTab, setActiveTab] = useState<'list' | 'board' | 'calendar'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'board'>('list');
 
   return (
     <div className="space-y-6 flex flex-col h-full">
@@ -27,18 +26,12 @@ export default function CRMRootPage() {
            >
              <KanbanSquare size={18} /> {t('crm_pipeline', { fallback: 'مسار المبيعات' })}
            </button>
-           <button 
-             onClick={() => setActiveTab('calendar')}
-             className={cn("px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-all", activeTab === 'calendar' ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200')}
-           >
-             <Calendar size={18} /> {t('appointments', { fallback: 'المواعيد' })}
            </button>
        </div>
 
        <div className="flex-1 min-h-0">
           {activeTab === 'list' && <CustomersList />}
           {activeTab === 'board' && <KanbanBoard />}
-          {activeTab === 'calendar' && <CalendarView />}
        </div>
     </div>
   );

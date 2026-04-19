@@ -9,10 +9,11 @@ import {
   MessageSquareDiff, 
   Users, 
   Store, 
-  Settings,
   ChevronLeft,
   ChevronRight,
-  Calendar
+  Calendar,
+  Cable,
+  Settings
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -65,7 +66,13 @@ export default function SidebarNav() {
       activePattern: /^\/app\/store/
     },
     {
-      title: tLayout('settings_integrations'),
+      title: tLayout('integrations', { fallback: 'التكاملات' }),
+      href: '/app/integrations',
+      icon: Cable,
+      activePattern: /^\/app\/integrations/
+    },
+    {
+      title: tLayout('settings', { fallback: 'الإعدادات' }),
       href: '/app/settings',
       icon: Settings,
       activePattern: /^\/app\/settings/
