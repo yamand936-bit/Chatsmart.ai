@@ -311,7 +311,9 @@
     "quick_open_chat": "Sohbet Simülatörünü Aç",
     "quick_view_orders": "Son Siparişleri Görüntüle",
     "settings": "Ayarlar",
-    "signOut": "Çıkış Yap"
+    "signOut": "Çıkış Yap",
+    "customers": "Müşteriler",
+    "integrations": "Entegrasyonlar"
   },
   "dashboard": {
     "performance_overview": "Performans Özeti",

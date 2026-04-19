@@ -312,7 +312,9 @@
     "quick_open_chat": "Open Chat Simulator",
     "quick_view_orders": "View Latest Orders",
     "settings": "Settings",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "customers": "Customers",
+    "integrations": "Integrations"
   },
   "dashboard": {
     "performance_overview": "Performance Overview",

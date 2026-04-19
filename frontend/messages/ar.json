@@ -312,7 +312,9 @@
     "quick_open_chat": "فتح محاكي الدردشة",
     "quick_view_orders": "عرض آخر الطلبات",
     "settings": "الإعدادات",
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "customers": "العملاء",
+    "integrations": "التكاملات"
   },
   "dashboard": {
     "performance_overview": "نظرة عامة على الأداء",
