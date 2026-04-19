@@ -9,6 +9,7 @@ from app.api.deps import get_merchant_tenant, redis_client
 from app.db.session import get_db
 from app.models.domain import Product, Order, Conversation, Message, Customer
 from app.models.ai_usage_log import AIUsageLog
+from app.models.business import Business, BusinessFeature
 import uuid
 import json
 import csv
