@@ -76,7 +76,8 @@ export default function OnboardingWizard() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto my-12 bg-white rounded-2xl shadow-xl border overflow-hidden" dir="rtl">
+    <div className="fixed inset-0 z-[100] bg-slate-100/95 backdrop-blur-sm overflow-y-auto w-full h-full" dir="rtl">
+      <div className="max-w-2xl mx-auto my-12 bg-white rounded-2xl shadow-2xl border overflow-hidden">
         <div className="bg-slate-900 text-white p-8 pb-12 flex justify-between items-center">
              <div>
                 <h1 className="text-2xl font-bold">إعداد حسابك الذكي</h1>
@@ -117,8 +118,11 @@ export default function OnboardingWizard() {
                             <div>
                                 <label className="block text-sm font-medium mb-1">نوع النشاط</label>
                                 <select value={bType} onChange={e=>setBType(e.target.value)} className="w-full border rounded-lg p-3">
-                                    <option value="retail">مبيعات (Retail)</option>
-                                    <option value="booking">حجوزات وخدمات</option>
+                                    <option value="retail">متاجر إلكترونية (E-commerce)</option>
+                                    <option value="hotel">فنادق وضيافة (Hotels)</option>
+                                    <option value="clinic">عيادات ومراكز طبية (Clinics)</option>
+                                    <option value="real_estate">عقارات (Real Estate)</option>
+                                    <option value="booking">حجوزات وخدمات عامة (Services)</option>
                                 </select>
                             </div>
                             <div>
@@ -195,6 +199,7 @@ export default function OnboardingWizard() {
                 
             </div>
         </div>
+      </div>
     </div>
   );
 }
