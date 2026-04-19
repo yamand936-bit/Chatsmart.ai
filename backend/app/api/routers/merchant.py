@@ -414,6 +414,65 @@ async def configure_tiktok(data: TikTokConfigureRequest, business_id: uuid.UUID 
     return {"status": "ignored"}
     
     return {"status": "error", "message": "Invalid action"}
+    
+class WhatsAppConfigureRequest(BaseModel):
+    access_token: str
+    phone_number_id: str
+    app_secret: str
+    business_account_id: Optional[str] = None
+
+@router.get("/features/whatsapp")
+async def get_whatsapp_config(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(BusinessFeature).where(
+        BusinessFeature.business_id == business_id,
+        BusinessFeature.feature_type == "whatsapp"
+    ))
+    feature = result.scalar_one_or_none()
+    
+    if not feature:
+        # Generate verify_token seamlessly for the merchant
+        new_verify_token = str(uuid.uuid4()).replace("-", "")
+        feature = BusinessFeature(
+            business_id=business_id,
+            feature_type="whatsapp",
+            is_active=False,
+            config={"verify_token": new_verify_token}
+        )
+        db.add(feature)
+        await db.commit()
+        await db.refresh(feature)
+    elif "verify_token" not in feature.config:
+        feature.config["verify_token"] = str(uuid.uuid4()).replace("-", "")
+        db.add(feature)
+        await db.commit()
+        await db.refresh(feature)
+        
+    return {"status": "success", "data": feature.config}
+
+@router.post("/features/whatsapp")
+async def configure_whatsapp(data: WhatsAppConfigureRequest, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(BusinessFeature).where(
+        BusinessFeature.business_id == business_id,
+        BusinessFeature.feature_type == "whatsapp"
+    ))
+    feature = result.scalar_one_or_none()
+    if not feature:
+        return {"status": "error", "message": "Config not found. Call GET first."}
+        
+    # Update while leaving verify_token intact
+    current_config = dict(feature.config)
+    current_config.update({
+        "access_token": data.access_token,
+        "phone_number_id": data.phone_number_id,
+        "app_secret": data.app_secret,
+        "business_account_id": data.business_account_id
+    })
+    
+    feature.config = current_config
+    feature.is_active = True
+    db.add(feature)
+    await db.commit()
+    return {"status": "success", "message": "WhatsApp credentials securely saved"}
 
 
 @router.get("/orders", response_model=OrderListResponse)
@@ -1473,6 +1532,31 @@ async def update_kanban_priority(
     c.lead_priority = payload.new_priority
     await db.commit()
     return {"status": "ok"}
+
+@router.get("/customers")
+async def get_customers(business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Customer)
+        .where(Customer.business_id == business_id)
+        .order_by(Customer.created_at.desc())
+    )
+    customers = result.scalars().all()
+    
+    # serialize safely
+    data = []
+    for c in customers:
+        data.append({
+            "id": str(c.id),
+            "platform": c.platform,
+            "external_id": c.external_id,
+            "name": c.name,
+            "phone": c.phone,
+            "email": c.email,
+            "tags": c.tags or [],
+            "custom_fields": c.custom_fields or {},
+            "created_at": c.created_at.isoformat() if c.created_at else None
+        })
+    return {"status": "success", "data": data}
 
 @router.get("/customers/tags")
 async def list_customer_tags(

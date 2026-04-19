@@ -108,8 +108,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
             <Link href="/app/chat" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('chat')}</Link>
             <Link href="/app/kanban" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{'CRM Funnel'}</Link>
+            <Link href="/app/customers" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('customers', { fallback: 'العملاء' })}</Link>
             <Link href="/app/campaigns" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('campaigns', { fallback: 'الحملات الذكية' })}</Link>
             <Link href="/app/settings" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('settings', { fallback: 'الإعدادات' })}</Link>
+            <Link href="/app/integrations" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('integrations', { fallback: 'التكاملات' })}</Link>
             <div className="border-l h-6 mx-1 md:mx-2 border-slate-300"></div>
             <div className="flex items-center gap-2">
                <NotificationBell />
