@@ -1,11 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import { Users, Phone, Mail, Globe, Search, PlusCircle, MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-export default function CustomersPage() {
+export default function CustomersList() {
   const t = useTranslations('merchant'); 
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ export default function CustomersPage() {
 
   const fetchCustomers = () => {
     setLoading(true);
-    axios.get('/api/merchant/customers')
+    apiClient.get('/api/merchant/customers')
       .then(res => {
          if (res.data.status === 'success') {
              setCustomers(res.data.data);
@@ -39,14 +39,14 @@ export default function CustomersPage() {
     <div className="max-w-6xl mx-auto space-y-6">
        <div className="flex items-center justify-between">
            <div>
-             <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="text-blue-600" /> العملاء (Customers CRM)</h1>
-             <p className="text-slate-500 mt-1">سجل العملاء التلقائي والبيانات المجمعة من رحلة المحادثة.</p>
+             <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="text-blue-600" /> {t('customers_title', { fallback: 'العملاء (CRM)' })}</h1>
+             <p className="text-slate-500 mt-1">{t('customers_desc', { fallback: 'سجل العملاء التلقائي والبيانات المجمعة من المحادثات.' })}</p>
            </div>
            
            <div className="relative">
               <input 
                  type="text" 
-                 placeholder="بحث (اسم، هاتف...)" 
+                 placeholder={t('search_placeholder', { fallback: 'بحث...' })}
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
                  className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg w-64 focus:ring-2 focus:outline-none focus:ring-blue-500" 

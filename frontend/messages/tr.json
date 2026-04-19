@@ -318,7 +318,10 @@
     "inbox_ai": "Gelen Kutusu ve YZ",
     "crm_sales": "Müşteriler & Satış",
     "ecommerce": "Mağaza",
-    "settings_integrations": "Ayarlar & Entegrasyonlar"
+    "settings_integrations": "Ayarlar & Entegrasyonlar",
+    "customers_list": "Liste",
+    "crm_pipeline": "Satış Hunisi",
+    "appointments": "Randevular"
   },
   "dashboard": {
     "performance_overview": "Performans Özeti",

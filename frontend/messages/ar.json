@@ -319,7 +319,10 @@
     "inbox_ai": "الرسائل والذكاء الاصطناعي",
     "crm_sales": "العملاء والمبيعات",
     "ecommerce": "المتجر الإلكتروني",
-    "settings_integrations": "الإعدادات والربط"
+    "settings_integrations": "الإعدادات والربط",
+    "customers_list": "القائمة",
+    "crm_pipeline": "مسار المبيعات",
+    "appointments": "المواعيد"
   },
   "dashboard": {
     "performance_overview": "نظرة عامة على الأداء",

@@ -319,7 +319,10 @@
     "inbox_ai": "Inbox & AI",
     "crm_sales": "CRM & Sales",
     "ecommerce": "E-Commerce",
-    "settings_integrations": "Settings & Integrations"
+    "settings_integrations": "Settings & Integrations",
+    "customers_list": "List View",
+    "crm_pipeline": "Pipeline",
+    "appointments": "Appointments"
   },
   "dashboard": {
     "performance_overview": "Performance Overview",
