@@ -11,7 +11,8 @@ import {
   Store, 
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -50,6 +51,12 @@ export default function SidebarNav() {
       href: '/app/crm',
       icon: Users,
       activePattern: /^\/app\/crm/
+    },
+    {
+      title: tLayout('appointments', { fallback: 'المواعيد' }),
+      href: '/app/calendar',
+      icon: Calendar,
+      activePattern: /^\/app\/calendar/
     },
     {
       title: tLayout('ecommerce'),
