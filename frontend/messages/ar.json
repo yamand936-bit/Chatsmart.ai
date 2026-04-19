@@ -314,7 +314,12 @@
     "settings": "الإعدادات",
     "signOut": "تسجيل الخروج",
     "customers": "العملاء",
-    "integrations": "التكاملات"
+    "integrations": "التكاملات",
+    "overview": "نظرة عامة",
+    "inbox_ai": "الرسائل والذكاء الاصطناعي",
+    "crm_sales": "العملاء والمبيعات",
+    "ecommerce": "المتجر الإلكتروني",
+    "settings_integrations": "الإعدادات والربط"
   },
   "dashboard": {
     "performance_overview": "نظرة عامة على الأداء",

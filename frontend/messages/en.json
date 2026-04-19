@@ -314,7 +314,12 @@
     "settings": "Settings",
     "signOut": "Sign Out",
     "customers": "Customers",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "overview": "Overview",
+    "inbox_ai": "Inbox & AI",
+    "crm_sales": "CRM & Sales",
+    "ecommerce": "E-Commerce",
+    "settings_integrations": "Settings & Integrations"
   },
   "dashboard": {
     "performance_overview": "Performance Overview",

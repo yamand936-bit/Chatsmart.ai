@@ -313,7 +313,12 @@
     "settings": "Ayarlar",
     "signOut": "Çıkış Yap",
     "customers": "Müşteriler",
-    "integrations": "Entegrasyonlar"
+    "integrations": "Entegrasyonlar",
+    "overview": "Genel Bakış",
+    "inbox_ai": "Gelen Kutusu ve YZ",
+    "crm_sales": "Müşteriler & Satış",
+    "ecommerce": "Mağaza",
+    "settings_integrations": "Ayarlar & Entegrasyonlar"
   },
   "dashboard": {
     "performance_overview": "Performans Özeti",

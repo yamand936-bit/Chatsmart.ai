@@ -11,6 +11,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { PlusCircle, MessageCircle, ShoppingCart } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
+import SidebarNav from '@/components/SidebarNav';
 
 function QuickActions({ tLayout }: { tLayout: any }) {
   const [open, setOpen] = useState(false);
@@ -80,56 +81,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <RoleGuard requiredRole="merchant">
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
+      <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 flex absolute inset-0 w-full text-slate-900 dark:text-slate-100">
         <Toaster position="top-center" reverseOrder={false} />
-        {announcement && (
-           <div className="bg-red-600 text-white text-center py-2 px-4 shadow font-bold text-sm z-50 sticky top-0 uppercase tracking-wide flex justify-center items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
-              {announcement}
-           </div>
-        )}
-        <header className="bg-[var(--primary-color,#1e293b)] dark:bg-slate-950 shadow px-6 py-4 flex justify-between items-center text-white relative z-30">
-          <div className="flex items-center gap-3">
-             <h1 className="font-bold text-xl text-white print-hidden">{t('title')}</h1>
-             <div className="hidden md:flex items-center gap-3 print-hidden">
-                 <QuickActions tLayout={tLayout} />
-                 <div className="bg-green-50 border border-green-200 px-3 py-1.5 rounded-full flex items-center gap-2" title="الربط مع WhatsApp نشط ويعمل بشكل طبيعي">
-                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                     <span className="text-xs font-bold text-green-700">{tLayout('whatsapp_connected')}</span>
-                 </div>
+        
+        {/* Left Sidebar */}
+        <SidebarNav />
+
+        {/* Main Content Scrollable Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          {announcement && (
+             <div className="bg-red-600 text-white text-center py-2 px-4 shadow font-bold text-sm z-50 sticky top-0 uppercase tracking-wide flex justify-center items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                {announcement}
              </div>
-          </div>
-          <nav className="flex items-center gap-4 md:gap-6 print-hidden">
-            <Link href="/app" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('overview') || 'Overview'}</Link>
-            <Link href="/app/products" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('products')}</Link>
-            <Link href="/app/orders" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('orders')}</Link>
-            {(businessType === 'booking' || businessType === 'services') && (
-              <Link href="/app/calendar" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('calendar', { fallback: 'التقويم المشروط' })}</Link>
-            )}
-            <Link href="/app/chat" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('chat')}</Link>
-            <Link href="/app/kanban" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{'CRM Funnel'}</Link>
-            <Link href="/app/customers" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('customers', { fallback: 'العملاء' })}</Link>
-            <Link href="/app/campaigns" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{t('campaigns', { fallback: 'الحملات الذكية' })}</Link>
-            <Link href="/app/settings" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('settings', { fallback: 'الإعدادات' })}</Link>
-            <Link href="/app/integrations" className="hover:text-blue-200 font-medium transition text-sm md:text-base opacity-90 hover:opacity-100">{tLayout('integrations', { fallback: 'التكاملات' })}</Link>
-            <div className="border-l h-6 mx-1 md:mx-2 border-slate-300"></div>
-            <div className="flex items-center gap-2">
+          )}
+
+          {/* Top Header App Bar */}
+          <header className="bg-white/80 backdrop-blur-md dark:bg-slate-900/80 shadow-sm border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center relative z-30 sticky top-0 print-hidden">
+            <div className="flex items-center gap-3">
+               <div className="hidden md:flex items-center gap-3">
+                   <QuickActions tLayout={tLayout} />
+                   <div className="bg-green-50 border border-green-200 px-3 py-1.5 rounded-full flex items-center gap-2" title="الربط مع WhatsApp نشط ويعمل بشكل طبيعي">
+                       <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                       <span className="text-xs font-bold text-green-700">{tLayout('whatsapp_connected')}</span>
+                   </div>
+               </div>
+            </div>
+            
+            <div className="flex items-center gap-2 print-hidden">
                <NotificationBell />
                <ThemeToggle />
                <LanguageSwitcher />
                <LogoutButton />
             </div>
-          </nav>
-        </header>
+          </header>
 
-        {/* Global Merchant Stats Header */}
-        <div className="sticky top-0 z-20 print-hidden">
-           <MerchantStatsBar />
+          {/* Global Merchant Stats Header */}
+          <div className="z-20 print-hidden">
+             <MerchantStatsBar />
+          </div>
+
+          {/* Page Content Constrained Wrapper */}
+          <main className="flex-1 p-6 relative z-10 w-full max-w-7xl mx-auto">
+            {children}
+          </main>
         </div>
-
-        <main className="flex-1 p-6 text-slate-800 relative z-10">
-          {children}
-        </main>
       </div>
     </RoleGuard>
   );
