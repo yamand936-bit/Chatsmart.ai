@@ -26,7 +26,6 @@ export default function CRMRootPage() {
            >
              <KanbanSquare size={18} /> {t('crm_pipeline', { fallback: 'مسار المبيعات' })}
            </button>
-           </button>
        </div>
 
        <div className="flex-1 min-h-0">
