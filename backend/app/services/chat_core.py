@@ -195,31 +195,9 @@ async def process_chat_core(
     )
     products = p_res.scalars().all()
 
-    # ── 5.5. Token Limit Enforcement (monthly) ───────────────────────────────
-    start_of_month = date.today().replace(day=1)
-
-    import json
-    from app.api.deps import redis_client
-    cache_key = f"token_usage:{business_id}:{start_of_month.isoformat()}"
-    cached_tokens = await redis_client.get(cache_key)
-    
-    if cached_tokens:
-        tokens_used = int(cached_tokens)
-    else:
-        u_res = await db.execute(
-            select(func.sum(UsageLog.tokens_used)).where(
-                UsageLog.business_id == business_id,
-                UsageLog.date_logged >= start_of_month,
-            )
-        )
-        tokens_used = u_res.scalar() or 0
-        await redis_client.setex(cache_key, 60, str(tokens_used))
-
-    plan_limit_str = await SettingsService.get(db, f"{business.plan_name}_tokens")
-    plan_limit = int(plan_limit_str) if plan_limit_str else None
-
-    if plan_limit is not None and tokens_used >= plan_limit:
-        ai_msg_content = "Token limit reached"
+    # ── 5.5. Message Credits Enforcement ───────────────────────────────
+    if business.message_credits <= 0:
+        ai_msg_content = "عذراً، لقد نفد رصيد الرسائل الخاص بك. يرجى التواصل مع الإدارة." if detected_lang in ["ar", "Arabic"] else ("Message credits exhausted." if detected_lang in ["tr", "Turkish"] else "Message credits exhausted.")
         intent_value = "limit_reached"
         # Save Bot Message
         bot_msg = Message(
@@ -625,9 +603,10 @@ async def process_chat_core(
         usage_today.tokens_used += tokens_used_now
         usage_today.request_count = (usage_today.request_count or 0) + 1
 
-    # C3 Invalidate Cache immediately to ensure billing accuracy
-    start_of_month = today_date.replace(day=1)
-    await redis_client.delete(f"token_usage:{business_id}:{start_of_month.isoformat()}")
+    # Decrement message layout visually
+    if intent_value != "business_disabled" and intent_value != "limit_reached" and provider != "unknown":
+        business.message_credits -= 1
+        db.add(business)
     # ── 10. Log detailed AI Analytics ─────────────────────────────────────────
     if provider != "unknown":
         input_tokens = TokenService.count(content)

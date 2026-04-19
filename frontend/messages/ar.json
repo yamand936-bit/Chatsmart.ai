@@ -160,7 +160,8 @@
     "orders_count": "{count, plural, =0 {لا توجد طلبات} one {# طلب} two {# طلبين} few {# طلبات} many {# طلباً} other {# طلب}}",
     "stats_orders_today": "إجمالي طلبات اليوم:",
     "stats_active_messages": "الرسائل النشطة:",
-    "stats_consumed_tokens": "التوكنز المستهلكة:"
+    "stats_consumed_tokens": "التوكنز المستهلكة:",
+    "stats_message_credits": "رصيد الرسائل المتبقي:"
   },
   "products": {
     "title": "إدارة المنتجات",

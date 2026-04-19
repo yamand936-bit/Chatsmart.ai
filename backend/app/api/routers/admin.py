@@ -224,6 +224,7 @@ async def get_businesses(
             "status": b.status,
             "token_limit": b.token_limit,
             "monthly_quota": b.monthly_quota,
+            "message_credits": b.message_credits,
             "token_usage": t_used,
             "usage_pct": round(usage_pct, 1),
             "plan_name": b.plan_name,
@@ -248,6 +249,10 @@ class BatchTokensRequest(BaseModel):
     business_ids: list[str]
     token_limit: int
 
+class BatchCreditsRequest(BaseModel):
+    business_ids: list[str]
+    credits_to_add: int
+
 @router.post("/businesses/batch/plan")
 async def batch_update_plan(data: BatchPlanRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
     from sqlalchemy import update
@@ -263,6 +268,19 @@ async def batch_update_tokens(data: BatchTokensRequest, db: AsyncSession = Depen
     u_ids = [uuid.UUID(bid) for bid in data.business_ids]
     if u_ids:
         await db.execute(update(Business).where(Business.id.in_(u_ids)).values(token_limit=data.token_limit))
+        await db.commit()
+    return {"status": "ok"}
+
+@router.post("/businesses/batch/credits")
+async def batch_inject_credits(data: BatchCreditsRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    from sqlalchemy import update
+    u_ids = [uuid.UUID(bid) for bid in data.business_ids]
+    if u_ids:
+        for bid in u_ids:
+            res = await db.execute(select(Business).where(Business.id == bid))
+            b = res.scalar_one_or_none()
+            if b:
+                b.message_credits += data.credits_to_add
         await db.commit()
     return {"status": "ok"}
 
@@ -471,6 +489,57 @@ async def create_business(data: CreateBusinessRequest, db: AsyncSession = Depend
         business_id=business.id
     )
     db.add(merchant_user)
+    
+    # --- Seed 4 Niche Goal-Oriented AI Prompts ---
+    from app.models.bot_flow import BotFlow
+    templates = [
+        {
+            "name": "Hotels & Hospitality (فنادق وضيافة)",
+            "rules": [{
+                "condition_type": "always",
+                "condition_value": "",
+                "action": "ai_handoff",
+                "ai_instructions": "Your goal is to be a helpful receptionist. You MUST collect: Guest Name, Check-in Date, Out Date and Room Type. Do not end the conversation until these are extracted. Use a welcoming tone."
+            }]
+        },
+        {
+            "name": "Medical Clinic (عيادات)",
+            "rules": [{
+                "condition_type": "always",
+                "condition_value": "",
+                "action": "ai_handoff",
+                "ai_instructions": "Your goal is to be a helpful clinic assistant. You MUST collect: Patient Name, Speciality or Doctor Name, and preferred Appointment Date. Do not end the conversation until these are extracted. Be empathetic."
+            }]
+        },
+        {
+            "name": "Real Estate (عقارات)",
+            "rules": [{
+                "condition_type": "always",
+                "condition_value": "",
+                "action": "ai_handoff",
+                "ai_instructions": "Your goal is to be a professional real estate agent. You MUST collect: Buyer Budget, Preferred Location, and Unit Type. Do not end the conversation until these are extracted. Provide confident responses."
+            }]
+        },
+        {
+            "name": "E-commerce Support (متاجر إلكترونية)",
+            "rules": [{
+                "condition_type": "always",
+                "condition_value": "",
+                "action": "ai_handoff",
+                "ai_instructions": "Your goal is to be an E-commerce support agent. If a user asks about an order or has a complaint, you MUST collect: Order ID, and Issue Type. Do not end the conversation until these are extracted."
+            }]
+        }
+    ]
+    
+    for t in templates:
+        flow = BotFlow(
+            business_id=business.id,
+            name=t["name"],
+            is_active=False,
+            rules=t["rules"]
+        )
+        db.add(flow)
+        
     await db.commit()
     
 

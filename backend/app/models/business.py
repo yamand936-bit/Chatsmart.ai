@@ -13,6 +13,7 @@ class Business(BaseModel):
     status: Mapped[str] = mapped_column(String(50), default="active")
     token_limit: Mapped[int] = mapped_column(Integer, default=100000)
     monthly_quota: Mapped[int] = mapped_column(Integer, default=100000)
+    message_credits: Mapped[int] = mapped_column(Integer, default=500, server_default="500")
     
     plan_name: Mapped[str] = mapped_column(String(50), default="free")
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

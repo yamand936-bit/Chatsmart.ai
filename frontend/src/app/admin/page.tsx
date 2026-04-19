@@ -67,6 +67,7 @@ export default function AdminDashboard() {
   const [bulkAction, setBulkAction] = useState('');
   const [bulkPlan, setBulkPlan] = useState('pro');
   const [bulkTokens, setBulkTokens] = useState(100000);
+  const [bulkCredits, setBulkCredits] = useState(500);
 
   // New States for Edit / Settings Modal
   const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
@@ -206,6 +207,8 @@ export default function AdminDashboard() {
          await axios.post('/api/admin/businesses/batch/plan', { business_ids: selectedIds, new_plan: bulkPlan }, { withCredentials: true });
       } else if (bulkAction === 'tokens') {
          await axios.post('/api/admin/businesses/batch/tokens', { business_ids: selectedIds, token_limit: bulkTokens }, { withCredentials: true });
+      } else if (bulkAction === 'credits') {
+         await axios.post('/api/admin/businesses/batch/credits', { business_ids: selectedIds, credits_to_add: bulkCredits }, { withCredentials: true });
       }
       setCreateMsg({ type: 'success', text: 'Batch action completed successfully.' });
       setSelectedIds([]);
@@ -612,7 +615,8 @@ export default function AdminDashboard() {
                  >
                     <option value="">-- Actions --</option>
                     <option value="plan">Change Plan</option>
-                    <option value="tokens">Adjust Tokens</option>
+                    <option value="tokens">Adjust Token Audits</option>
+                    <option value="credits">Inject Credits</option>
                  </select>
                  {bulkAction === 'plan' && (
                     <select className="text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
@@ -623,6 +627,9 @@ export default function AdminDashboard() {
                  )}
                  {bulkAction === 'tokens' && (
                     <input type="number" className="w-24 text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkTokens} onChange={e => setBulkTokens(Number(e.target.value))} />
+                 )}
+                 {bulkAction === 'credits' && (
+                    <input type="number" placeholder="e.g. +500" className="w-24 text-sm border border-slate-300 rounded-md px-2 py-1 bg-white" value={bulkCredits} onChange={e => setBulkCredits(Number(e.target.value))} />
                  )}
                  <button onClick={handleBulkAction} className="bg-blue-600 text-white text-sm px-3 py-1 rounded-md hover:bg-blue-700">Apply</button>
               </div>
@@ -652,7 +659,7 @@ export default function AdminDashboard() {
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.name')}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.owner_email')}</th>
                     <th className="py-4 font-semibold px-2 text-start">Profit Margin</th>
-                    <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.token_usage')}</th>
+                    <th className="py-4 font-semibold px-2 text-start">Message Credits</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.connection_status') || 'Connection Status'}</th>
                     <th className="py-4 font-semibold px-2 text-start">{tAdmin('table.status')}</th>
                     <th className="py-4 font-semibold px-2 text-end">{tCommon('actions')}</th>
@@ -686,10 +693,8 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-4 px-2">
                          <div className="flex flex-col gap-1 w-32">
-                           <span className="text-xs text-slate-500">{usage.toLocaleString()} / {limit.toLocaleString()}</span>
-                           <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                             <div className={`h-1.5 rounded-full ${pgColor} transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
-                           </div>
+                           <span className="text-sm font-bold text-slate-800">{b.message_credits}</span>
+                           <span className="text-xs text-slate-400">({usage.toLocaleString()} / {limit.toLocaleString()} audit tkns)</span>
                          </div>
                       </td>
                       <td className="py-4 px-2">

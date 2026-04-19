@@ -160,7 +160,8 @@
     "orders_count": "{count, plural, =0 {No orders} one {# order} other {# orders}}",
     "stats_orders_today": "Total Orders Today:",
     "stats_active_messages": "Active Messages:",
-    "stats_consumed_tokens": "Consumed Tokens:"
+    "stats_consumed_tokens": "Consumed Tokens:",
+    "stats_message_credits": "Remaining Message Credits:"
   },
   "products": {
     "title": "Manage Products",

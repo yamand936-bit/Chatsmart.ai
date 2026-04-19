@@ -159,7 +159,8 @@
     "orders_count": "{count, plural, =0 {Sipariş yok} one {# sipariş} other {# sipariş}}",
     "stats_orders_today": "Bugünkü Toplam Siparişler:",
     "stats_active_messages": "Aktif Mesajlar:",
-    "stats_consumed_tokens": "Tüketilen Jetonlar:"
+    "stats_consumed_tokens": "Tüketilen Jetonlar:",
+    "stats_message_credits": "Kalan Mesaj Kredisi:"
   },
   "products": {
     "title": "Ürünleri Yönet",

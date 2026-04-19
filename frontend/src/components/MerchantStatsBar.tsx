@@ -7,7 +7,7 @@ export default function MerchantStatsBar() {
   const [stats, setStats] = useState({
     orders_today: 0,
     active_messages: 0,
-    consumed_tokens: 0
+    message_credits: 0
   });
 
   const t = useTranslations('merchant');
@@ -46,8 +46,8 @@ export default function MerchantStatsBar() {
           <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.active_messages}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="opacity-70">{t('stats_consumed_tokens', { fallback: 'التوكنز المستهلكة:' })}</span>
-          <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.consumed_tokens.toLocaleString()}</span>
+          <span className="opacity-70">{t('stats_message_credits', { fallback: 'رصيد الرسائل المتبقي:' })}</span>
+          <span className="font-bold text-white bg-blue-800 px-2 py-0.5 rounded">{stats.message_credits.toLocaleString()}</span>
         </div>
       </div>
     </div>

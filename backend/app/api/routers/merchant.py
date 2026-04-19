@@ -125,7 +125,7 @@ class StatsResponse(BaseModel):
     status: str
     orders_today: int
     active_messages: int
-    consumed_tokens: int
+    message_credits: int
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -225,18 +225,18 @@ async def get_stats(business_id: uuid.UUID = Depends(get_merchant_tenant), db: A
     )
     active_messages = msgs_result.scalar_one_or_none() or 0
 
-    # Calculate consumed tokens
-    tokens_result = await db.execute(
-        select(func.sum(AIUsageLog.total_tokens))
-        .where(AIUsageLog.business_id == str(business_id))
+    # Fetch current message credits
+    b_result = await db.execute(
+        select(Business.message_credits)
+        .where(Business.id == business_id)
     )
-    consumed_tokens = tokens_result.scalar_one_or_none() or 0
+    message_credits = b_result.scalar_one_or_none() or 0
 
     response_data = {
         "status": "ok",
         "orders_today": orders_today,
         "active_messages": active_messages,
-        "consumed_tokens": int(consumed_tokens)
+        "message_credits": int(message_credits)
     }
 
     # Cache for 5 minutes
