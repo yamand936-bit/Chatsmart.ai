@@ -441,13 +441,16 @@ async def get_whatsapp_config(business_id: uuid.UUID = Depends(get_merchant_tena
         db.add(feature)
         await db.commit()
         await db.refresh(feature)
-    elif "verify_token" not in feature.config:
-        feature.config["verify_token"] = str(uuid.uuid4()).replace("-", "")
+    elif not feature.config or "verify_token" not in feature.config:
+        current_config = dict(feature.config or {})
+        current_config["verify_token"] = str(uuid.uuid4()).replace("-", "")
+        feature.config = current_config
         db.add(feature)
         await db.commit()
         await db.refresh(feature)
         
-    return {"status": "success", "data": feature.config}
+    config_data = feature.config if feature.config else {}
+    return {"status": "success", "data": config_data}
 
 @router.post("/features/whatsapp")
 async def configure_whatsapp(data: WhatsAppConfigureRequest, business_id: uuid.UUID = Depends(get_merchant_tenant), db: AsyncSession = Depends(get_db)):
@@ -460,7 +463,7 @@ async def configure_whatsapp(data: WhatsAppConfigureRequest, business_id: uuid.U
         return {"status": "error", "message": "Config not found. Call GET first."}
         
     # Update while leaving verify_token intact
-    current_config = dict(feature.config)
+    current_config = dict(feature.config or {})
     current_config.update({
         "access_token": data.access_token,
         "phone_number_id": data.phone_number_id,
