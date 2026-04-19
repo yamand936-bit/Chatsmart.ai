@@ -145,6 +145,7 @@ export default function SettingsPage() {
                                try {
                                     await axios.post(`/api/merchant/knowledge`, formData, { withCredentials: true });
                                     toast.success("File processed & learned successfully!", {id: toastId});
+                                    setKnowledgeBase(prev => prev + `\n\n[System Alert: Document '${file.name}' has been embedded securely into the AI Knowledge Vector Base.]`);
                                } catch (err) {
                                     toast.error("Error processing file", {id: toastId});
                                }

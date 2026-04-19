@@ -532,11 +532,31 @@ async def create_business(data: CreateBusinessRequest, db: AsyncSession = Depend
     ]
     
     for t in templates:
+        instructions = t["rules"][0]["ai_instructions"]
+        ui_state = {
+            'nodes': [
+                {'id': 'n1', 'type': 'trigger', 'position': {'x': 150, 'y': 150}, 'data': {'triggerKeyword': ''}},
+                {'id': 'n2', 'type': 'ai_handover', 'position': {'x': 500, 'y': 150}, 'data': {'aiInstructions': instructions}}
+            ],
+            'edges': [
+                {'id': 'e1', 'source': 'n1', 'target': 'n2', 'animated': True}
+            ]
+        }
+        logic_state = {
+            'triggers': [{'node_id': 'n1', 'keywords': []}],
+            'nodes': {
+                'n1': {'type': 'trigger', 'payload': {'triggerKeyword': ''}, 'next': ['n2']},
+                'n2': {'type': 'ai_handover', 'payload': {'aiInstructions': instructions}, 'next': []}
+            }
+        }
+        
         flow = BotFlow(
             business_id=business.id,
             name=t["name"],
             is_active=False,
-            rules=t["rules"]
+            rules=t["rules"],
+            flow_ui_state=ui_state,
+            flow_logic_state=logic_state
         )
         db.add(flow)
         
