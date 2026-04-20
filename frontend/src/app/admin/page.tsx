@@ -10,15 +10,7 @@ const AdminCharts = dynamic(() => import('@/components/AdminCharts'), {
   loading: () => <Skeleton className="h-80 rounded-xl w-full" />,
 });
 
-const AdminHealthTab = dynamic(() => import('@/components/AdminHealthTab'), {
-  ssr: false,
-  loading: () => <Skeleton className="h-60" />,
-});
 
-const AdminMRRSummary = dynamic(() => import('@/components/AdminMRRSummary'), {
-  ssr: false,
-  loading: () => <div className="p-10 text-center"><Skeleton className="h-60" /></div>,
-});
 
 const Sparkline = ({ data }: { data: number[] }) => {
   if (!data || data.length === 0) return null;
@@ -567,7 +559,7 @@ export default function AdminDashboard() {
             {/* Charts */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                <h3 className="text-lg font-semibold mb-4 text-slate-800">{tAdmin('workspaces.api_usage_trends')}</h3>
-               <AdminCharts />
+               <AdminCharts profitData={profitData} businesses={businesses} tAdmin={tAdmin as any} />
             </div>
           </div>
         )}
