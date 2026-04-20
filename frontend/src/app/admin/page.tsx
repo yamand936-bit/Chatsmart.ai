@@ -98,11 +98,7 @@ export default function AdminDashboard() {
 
   // Set up API client to automatically inject token
   const apiClient = axios.create({ baseURL: '', withCredentials: true });
-  apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  });
+
 
   useEffect(() => {
     const v = localStorage.getItem('hideLiveActivity');
@@ -247,8 +243,7 @@ export default function AdminDashboard() {
       try {
           const res = await apiClient.post(`/api/admin/impersonate/${id}`);
           if(res.data.token) {
-              localStorage.setItem('token', res.data.token);
-              window.location.href = '/app';
+              window.location.href = `/app?impersonate_token=${res.data.token}`;
           }
       } catch (err) {
           alert('Failed to impersonate');
