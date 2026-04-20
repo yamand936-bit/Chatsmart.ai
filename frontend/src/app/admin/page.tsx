@@ -119,19 +119,22 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [{ data: bData }, { data: mData }, { data: hData }, { data: lData }, { data: cfg }] = await Promise.all([
+      const [b, m, h, l, c] = await Promise.allSettled([
         apiClient.get('/api/admin/businesses'),
         apiClient.get('/api/admin/metrics'),
         apiClient.get('/api/admin/health'),
         apiClient.get('/api/admin/logs?limit=50'),
         apiClient.get('/api/system/settings')
       ]);
-      setBusinesses(bData.data || []);
-      setMetrics(mData.data);
-      setSystemHealth(hData.data);
-      setLogs(lData.data || []);
-      setSystemSettings(cfg?.config || {});
-      setMaintenanceEnabled(cfg?.config?.maintenance_mode || false);
+
+      if (b.status === 'fulfilled') setBusinesses(b.value.data.data || []);
+      if (m.status === 'fulfilled') setMetrics(m.value.data.data);
+      if (h.status === 'fulfilled') setSystemHealth(h.value.data);
+      if (l.status === 'fulfilled') setLogs(l.value.data.data || []);
+      if (c.status === 'fulfilled') {
+        setSystemSettings(c.value.data.config || {});
+        setMaintenanceEnabled(c.value.data.config?.maintenance_mode || false);
+      }
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
          window.location.href = '/login';
