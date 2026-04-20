@@ -140,8 +140,8 @@ export default function AdminDashboard() {
       if (h.status === 'fulfilled') setSystemHealth(h.value.data);
       if (l.status === 'fulfilled') setLogs(l.value.data.data || []);
       if (c.status === 'fulfilled') {
-        setSystemSettings(c.value.data.config || {});
-        setMaintenanceEnabled(c.value.data.config?.maintenance_mode || false);
+        setSystemSettings(c.value.data || {});
+        setMaintenanceEnabled(c.value.data.maintenance_mode || false);
       }
     } catch (err: any) {
        console.error("fetchData error", err);
@@ -213,7 +213,9 @@ export default function AdminDashboard() {
   const handleSaveSystemSettings = async () => {
     setSavingSettings(true);
     try {
-      await apiClient.post('/api/admin/config', systemSettings);
+      const payload = { ...systemSettings };
+      delete payload.maintenance_mode;
+      await apiClient.post('/api/system/settings', payload);
       alert('Settings saved!');
     } catch (err) {
       console.error(err);
@@ -225,13 +227,11 @@ export default function AdminDashboard() {
 
   const handleToggleMaintenance = async () => {
      const newState = !maintenanceEnabled;
-     const updated = { ...systemSettings, maintenance_mode: newState };
-     setSystemSettings(updated);
      setMaintenanceEnabled(newState);
      try {
-       await apiClient.post('/api/admin/config', updated);
+       await apiClient.post('/api/admin/system/maintenance', { enabled: newState });
      } catch(err) {
-        // revert on fail
+        setMaintenanceEnabled(!newState);
      }
   };
 

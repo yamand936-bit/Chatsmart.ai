@@ -1,9 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Rebuilding API container..."
-docker-compose restart api
-Start-Sleep -Seconds 10
-Write-Host "API container restarted."
+Write-Host "API is already running."
 
 Write-Host "1. Logging in as super admin..."
 $adminLogin = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -Body "username=admin@chatsmart.ai&password=AdminUser123!" -ContentType "application/x-www-form-urlencoded"

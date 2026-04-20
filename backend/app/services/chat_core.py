@@ -23,6 +23,7 @@ import time
 from app.core.utils import safe_create_task
 
 # Prevent DB/OpenAI Starvation during concurrent Webhook Spikes
+import asyncio
 AI_SEMAPHORE = asyncio.Semaphore(15)
 
 def detect_language(text: str) -> str:

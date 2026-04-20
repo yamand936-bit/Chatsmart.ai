@@ -1,10 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Rebuilding API to load AI Logic..."
-docker-compose restart api
-Start-Sleep -Seconds 10
-
-Write-Host "Logging in as Merchant..."
+Write-Host "API is already running."
 $merchantLogin = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -Body "username=merchant@test.com&password=SecurePass123!" -ContentType "application/x-www-form-urlencoded"
 $merchantToken = $merchantLogin.access_token
 

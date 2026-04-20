@@ -43,6 +43,13 @@ async def get_settings(db: AsyncSession = Depends(get_db), admin: dict = Depends
     result = {}
     for k in ALLOWED_KEYS:
         result[k] = await SettingsService.get(db, k)
+    
+    try:
+        maintenance = await redis_client.get("system:maintenance")
+        result["maintenance_mode"] = True if maintenance else False
+    except Exception:
+        result["maintenance_mode"] = False
+
     return result
 
 @router.post("/settings")
