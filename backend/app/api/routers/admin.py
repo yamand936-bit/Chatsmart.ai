@@ -676,7 +676,13 @@ async def create_subscription_checkout(business_id: uuid.UUID, data: SubscribeRe
         raise HTTPException(status_code=404, detail="Business not found")
         
     token_limit_str = await SettingsService.get(db, f"{data.plan}_tokens")
-    token_limit = int(token_limit_str) if token_limit_str else -1
+    if token_limit_str in [None, "", "None"]:
+        token_limit = -1
+    else:
+        try:
+            token_limit = int(token_limit_str)
+        except (ValueError, TypeError):
+            token_limit = -1
     
     # If the retrieved token limit is extraordinarily high (representing infinity), we store -1 instead
     if token_limit >= 999999999:
@@ -687,7 +693,6 @@ async def create_subscription_checkout(business_id: uuid.UUID, data: SubscribeRe
     business.subscription_status = "active"
 
     await db.commit()
-
 
     return {
         "status": "ok",
