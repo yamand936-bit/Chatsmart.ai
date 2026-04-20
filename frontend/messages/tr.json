@@ -40,14 +40,14 @@
     },
     "table": {
       "name": "İsim",
-      "owner_email": "Kurucu E-postası",
+      "owner_email": "Sahip E-postası",
       "business_type": "Tür",
       "token_usage": "Jeton Kullanımı",
       "status": "Durum",
       "status_active": "Aktif",
       "status_inactive": "Pasif",
       "status_unknown": "Bilinmiyor",
-      "no_businesses": "İşletme bulunamadı.",
+      "no_businesses": "Kriterlere uyan mağaza bulunamadı.",
       "edit": "Düzenle",
       "disable": "Devre Dışı Bırak",
       "view_usage": "Kullanımı Görüntüle",
@@ -59,7 +59,11 @@
       "close": "Kapat",
       "update_success": "İşletme başarıyla güncellendi!",
       "impersonate": "Satıcı Olarak Giriş Yap",
-      "connection_status": "Bağlantı Durumu"
+      "connection_status": "Bağlantı Durumu",
+      "name_and_plan": "İsim & Paket",
+      "credits_given": "Verilen Krediler",
+      "targeting": "Hedefleme",
+      "options": "Seçenekler"
     },
     "create": {
       "integrations_title": "Entegrasyonlar ve Özellikler",
@@ -67,12 +71,12 @@
       "type_restaurant": "Restoran",
       "type_services": "Hizmetler",
       "type_booking": "Rezervasyon",
-      "business_name": "İşletme Adı",
+      "business_name": "Mağaza Adı",
       "owner_name": "Kurucu Adı",
       "email": "E-posta",
       "password": "Şifre",
       "phone_number": "Telefon Numarası",
-      "business_type": "İşletme Türü",
+      "business_type": "Sektör Tipi",
       "telegram": "Telegram",
       "whatsapp": "WhatsApp",
       "instagram": "Instagram",
@@ -85,7 +89,12 @@
       "token_limit": "Jeton Sınırı",
       "monthly_quota": "Aylık Kota",
       "success": "Başarıyla oluşturuldu!",
-      "error": "Oluşturma başarısız."
+      "error": "Oluşturma başarısız.",
+      "update_merchant": "Mağazayı Güncelle",
+      "add_new_merchant": "Yeni Mağaza Ekle",
+      "owner_email": "Yönetici E-postası",
+      "owner_password": "Yönetici Şifresi",
+      "create_merchant": "Mağaza Oluştur"
     },
     "tabs": {
       "businesses": "İşletmeler",
@@ -93,7 +102,9 @@
       "usage": "Kullanım",
       "plans": "Paketler",
       "logs": "Hata Kayıtları",
-      "settings": "Ayarlar"
+      "settings": "Ayarlar & Faturalandırma",
+      "overview": "Genel Bakış & Durum",
+      "merchants": "Mağaza Yönetimi"
     },
     "economic": {
       "cost": "Maliyet",
@@ -108,7 +119,8 @@
       "business": "İşletme",
       "error_type": "Hata Türü",
       "message": "Mesaj",
-      "no_logs": "Hata bulunmadı."
+      "no_logs": "Kayıt bulunamadı.",
+      "filter_placeholder": "Kayıtları filtrele..."
     },
     "usage": {
       "title": "Kullanım Analizi",
@@ -121,7 +133,12 @@
       "enterprise": "Kurumsal",
       "free": "Ücretsiz",
       "select_business_first": "Önce mağaza seçin",
-      "upgrade": "Yükselt"
+      "upgrade": "Yükselt",
+      "upgrades_title": "Abonelik Yükseltmeleri (Manuel)",
+      "select_placeholder": "-- Mağaza Seçin --",
+      "set_free": "Ücretsiz Ayarla",
+      "set_pro": "Pro Ayarla",
+      "set_enterprise": "Enterprise Ayarla"
     },
     "alerts": {
       "title": "Sistem Uyarıları",
@@ -132,6 +149,26 @@
     },
     "forecast": {
       "expected": "Beklenen Kâr (+15%)"
+    },
+    "workspaces": {
+      "system_overview": "Sistem Genel Bakış",
+      "api_usage_trends": "API Kullanım Trendleri",
+      "merchant_directory": "Mağaza Dizini",
+      "add_merchant": "Mağaza Ekle",
+      "system_settings": "Sistem Ayarları"
+    },
+    "settings_nav": {
+      "general": "Genel",
+      "subscription_plans": "Abonelik Planları",
+      "error_logs": "Hata Kayıtları"
+    },
+    "settings": {
+      "maintenance_mode": "Sistem Bakım Modu",
+      "maintenance_desc": "Güncellemeler sırasında tüm satıcı girişlerini engelleyin.",
+      "turn_on_maintenance": "Bakım Modunu Aç",
+      "maintenance_is_on": "BAKIM MODU AÇIK",
+      "save_settings": "Ayarları Kaydet",
+      "saving": "Kaydediliyor..."
     }
   },
   "merchant": {

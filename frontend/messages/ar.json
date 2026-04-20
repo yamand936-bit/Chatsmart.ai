@@ -47,7 +47,7 @@
       "status_active": "نشط",
       "status_inactive": "غير نشط",
       "status_unknown": "غير معروف",
-      "no_businesses": "لا يوجد أنشطة تجارية.",
+      "no_businesses": "لا توجد أعمال تطابق معايير البحث.",
       "edit": "تعديل",
       "disable": "تعطيل",
       "view_usage": "عرض الاستهلاك",
@@ -59,7 +59,11 @@
       "close": "إغلاق",
       "update_success": "تم تحديث البيانات بنجاح!",
       "impersonate": "🔑 دخول كتاجر",
-      "connection_status": "حالة الربط"
+      "connection_status": "حالة الربط",
+      "name_and_plan": "الاسم والباقة",
+      "credits_given": "الرصيد الممنوح",
+      "targeting": "الاستهداف",
+      "options": "خيارات"
     },
     "create": {
       "integrations_title": "الإضافات والمميزات",
@@ -67,12 +71,12 @@
       "type_restaurant": "مطعم",
       "type_services": "خدمات",
       "type_booking": "حجوزات (Booking)",
-      "business_name": "اسم النشاط التجاري",
+      "business_name": "اسم المتجر",
       "owner_name": "اسم المالك",
       "email": "البريد الإلكتروني",
       "password": "كلمة المرور",
       "phone_number": "رقم الهاتف",
-      "business_type": "نوع النشاط التجاري",
+      "business_type": "نوع النشاط (النيش)",
       "telegram": "تيليغرام",
       "whatsapp": "واتساب",
       "instagram": "انستغرام",
@@ -85,7 +89,12 @@
       "token_limit": "الحد الأقصى للتوكنز",
       "monthly_quota": "الحصة الشهرية",
       "success": "تم الإنشاء بنجاح!",
-      "error": "فشل الإنشاء."
+      "error": "فشل الإنشاء.",
+      "update_merchant": "تحديث المتجر",
+      "add_new_merchant": "إضافة متجر جديد",
+      "owner_email": "البريد الإلكتروني للإدارة",
+      "owner_password": "كلمة المرور",
+      "create_merchant": "إنشاء متجر"
     },
     "tabs": {
       "businesses": "الأنشطة التجارية",
@@ -93,7 +102,9 @@
       "usage": "الاستهلاك",
       "plans": "الباقات",
       "logs": "سجل الأخطاء التقنية",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات والفوترة",
+      "overview": "نظرة عامة وصحة النظام",
+      "merchants": "إدارة المتاجر"
     },
     "economic": {
       "cost": "التكلفة الفعالة",
@@ -108,7 +119,8 @@
       "business": "الشركة المتأثرة",
       "error_type": "نوع الخطأ",
       "message": "نص الخطأ",
-      "no_logs": "لا توجد أخطاء مسجلة."
+      "no_logs": "لا توجد سجلات.",
+      "filter_placeholder": "تصفية السجلات..."
     },
     "usage": {
       "title": "تحليلات الاستهلاك",
@@ -118,11 +130,15 @@
       "title": "باقات الاشتراك",
       "subtitle": "اختر متجراً للترقية.",
       "select_business_first": "اختر متجر أولاً",
-      "select_placeholder": "-- اختر العمل --",
+      "select_placeholder": "-- اختر المتجر --",
       "free": "مجاني",
       "pro": "برو",
       "enterprise": "إنتربرايز",
-      "upgrade": "ترقية"
+      "upgrade": "ترقية",
+      "upgrades_title": "ترقية الاشتراكات (يدوياً)",
+      "set_free": "تعيين كـ مجاني",
+      "set_pro": "تعيين كـ برو",
+      "set_enterprise": "تعيين كـ مؤسسة"
     },
     "alerts": {
       "title": "تنبيهات النظام الذكية",
@@ -133,6 +149,26 @@
     },
     "forecast": {
       "expected": "الربح المتوقع (+15%)"
+    },
+    "workspaces": {
+      "system_overview": "نظرة عامة على النظام",
+      "api_usage_trends": "معدل استهلاك الـ API",
+      "merchant_directory": "دليل المتاجر",
+      "add_merchant": "إضافة متجر",
+      "system_settings": "إعدادات النظام"
+    },
+    "settings_nav": {
+      "general": "عام",
+      "subscription_plans": "باقات الاشتراك",
+      "error_logs": "سجلات الأخطاء"
+    },
+    "settings": {
+      "maintenance_mode": "وضع الصيانة",
+      "maintenance_desc": "حظر تسجيل الدخول للمتاجر أثناء التحديثات.",
+      "turn_on_maintenance": "تفعيل وضع الصيانة",
+      "maintenance_is_on": "وضع الصيانة مفعل",
+      "save_settings": "حفظ الإعدادات",
+      "saving": "جاري الحفظ..."
     }
   },
   "merchant": {

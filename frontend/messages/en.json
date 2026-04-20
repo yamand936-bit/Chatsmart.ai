@@ -47,7 +47,7 @@
       "status_active": "Active",
       "status_inactive": "Inactive",
       "status_unknown": "Unknown",
-      "no_businesses": "No businesses found.",
+      "no_businesses": "No businesses found matching criteria.",
       "edit": "Edit",
       "disable": "Disable",
       "view_usage": "View Usage",
@@ -59,7 +59,11 @@
       "close": "Close",
       "update_success": "Business updated successfully!",
       "impersonate": "Login as Merchant",
-      "connection_status": "Connection"
+      "connection_status": "Connection",
+      "name_and_plan": "Name & Plan",
+      "credits_given": "Credits Given",
+      "targeting": "Targeting",
+      "options": "Options"
     },
     "create": {
       "integrations_title": "Integrations & Features",
@@ -72,7 +76,7 @@
       "email": "Owner Email",
       "password": "Password",
       "phone_number": "Phone Number",
-      "business_type": "Business Type",
+      "business_type": "Business Type (Niche)",
       "telegram": "Telegram",
       "whatsapp": "WhatsApp",
       "instagram": "Instagram",
@@ -85,7 +89,12 @@
       "token_limit": "Token Limit",
       "monthly_quota": "Monthly Quota",
       "success": "Business created successfully!",
-      "error": "Failed to create business."
+      "error": "Failed to create business.",
+      "update_merchant": "Update Merchant",
+      "add_new_merchant": "Add New Merchant",
+      "owner_email": "Owner Email (Login)",
+      "owner_password": "Owner Password",
+      "create_merchant": "Create Merchant"
     },
     "tabs": {
       "businesses": "Businesses",
@@ -93,7 +102,9 @@
       "usage": "Usage",
       "plans": "Plans",
       "logs": "Error Logs",
-      "settings": "Settings"
+      "settings": "Settings & Billing",
+      "overview": "Overview & Health",
+      "merchants": "Merchant Center"
     },
     "economic": {
       "cost": "Cost",
@@ -108,7 +119,8 @@
       "business": "Business",
       "error_type": "Error Type",
       "message": "Message",
-      "no_logs": "No errors found."
+      "no_logs": "No logs found.",
+      "filter_placeholder": "Filter logs..."
     },
     "usage": {
       "title": "Usage Analytics",
@@ -118,11 +130,15 @@
       "title": "Subscription Plans",
       "subtitle": "Select a business and upgrade.",
       "select_business_first": "Select Business",
-      "select_placeholder": "-- Choose Business --",
+      "select_placeholder": "-- Select Merchant --",
       "free": "Free",
       "pro": "Pro",
       "enterprise": "Enterprise",
-      "upgrade": "Upgrade Plan"
+      "upgrade": "Upgrade Plan",
+      "upgrades_title": "Subscription Upgrades (Manual)",
+      "set_free": "Set Free",
+      "set_pro": "Set Pro",
+      "set_enterprise": "Set Enterprise"
     },
     "alerts": {
       "title": "System Alerts",
@@ -133,6 +149,26 @@
     },
     "forecast": {
       "expected": "Expected Profit (+15%)"
+    },
+    "workspaces": {
+      "system_overview": "System Overview",
+      "api_usage_trends": "API Usage Trends",
+      "merchant_directory": "Merchant Directory",
+      "add_merchant": "Add Merchant",
+      "system_settings": "System Settings"
+    },
+    "settings_nav": {
+      "general": "General",
+      "subscription_plans": "Subscription Plans",
+      "error_logs": "Error Logs"
+    },
+    "settings": {
+      "maintenance_mode": "System Maintenance Mode",
+      "maintenance_desc": "Block all merchant logins during updates.",
+      "turn_on_maintenance": "Turn On Maintenance",
+      "maintenance_is_on": "MAINTENANCE IS ON",
+      "save_settings": "Save Settings",
+      "saving": "Saving..."
     }
   },
   "merchant": {
