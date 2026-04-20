@@ -97,7 +97,7 @@ export default function AdminDashboard() {
   const [showLiveActivity, setShowLiveActivity] = useState(true);
 
   // Set up API client to automatically inject token
-  const apiClient = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || '', withCredentials: true });
+  const apiClient = axios.create({ baseURL: '', withCredentials: true });
   apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
