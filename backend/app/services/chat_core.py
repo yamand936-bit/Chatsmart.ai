@@ -49,6 +49,9 @@ async def process_chat_core(
     Returns: (ai_response_text, intent_string, user_msg_id, conversation_id, smart_cards)
     """
 
+    # Security Cap: Reject infinite token buffer bloat from malicious webhooks
+    content = (content or "")[:2000]
+
     # ── 1. Find or create Customer (race-condition safe) ─────────────────────
     result = await db.execute(
         select(Customer).where(
@@ -200,24 +203,7 @@ async def process_chat_core(
     products = p_res.scalars().all()
 
     # ── 5.5. Message Credits Enforcement ───────────────────────────────
-    if business.message_credits <= 0:
-        ai_msg_content = "عذراً، لقد نفد رصيد الرسائل الخاص بك. يرجى التواصل مع الإدارة." if detected_lang in ["ar", "Arabic"] else ("Message credits exhausted." if detected_lang in ["tr", "Turkish"] else "Message credits exhausted.")
-        intent_value = "limit_reached"
-        # Save Bot Message
-        bot_msg = Message(
-            business_id=business_id,
-            conversation_id=conversation.id,
-            sender_type="bot",
-            content=ai_msg_content,
-            intent=intent_value,
-            model_used="none",
-            token_count=0 
-        )
-        db.add(bot_msg)
-        await db.commit()
-        await db.refresh(user_msg)
-
-        return ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), []
+    # The atomic check and deduction has been relocated directly before the LLM operation.
 
     # ── 5.6. Evaluate State Machine & Flow Engine ──────────────────────────────
     from app.services.flow_engine import FlowEngine
@@ -300,14 +286,9 @@ async def process_chat_core(
         start_time = time.time()
         
         # 1. Atomic DB Deduction
-        from sqlalchemy import update
-        deduct_res = await db.execute(
-            update(Business)
-            .where(Business.id == business_id, Business.message_credits > 0)
-            .values(message_credits=Business.message_credits - 1)
-            .returning(Business.message_credits)
-        )
-        if deduct_res.scalar() is None:
+        from app.services.billing import reserve_credit, refund_credit
+        reserved = await reserve_credit(db, business_id)
+        if not reserved:
             # Handled concurrent race losing condition
             ai_msg_content = "عذراً، لقد نفد رصيد الرسائل الخاص بك. يرجى التواصل مع الإدارة." if detected_lang in ["ar", "Arabic"] else ("Message credits exhausted." if detected_lang in ["tr", "Turkish"] else "Message credits exhausted.")
             bot_msg = Message(business_id=business_id, conversation_id=conversation.id, sender_type="bot", content=ai_msg_content, intent="limit_reached", model_used="none", token_count=0)
@@ -327,7 +308,7 @@ async def process_chat_core(
                 )
         except Exception:
             # Refund on failing to reach OpenAI or crash
-            await db.execute(update(Business).where(Business.id == business_id).values(message_credits=Business.message_credits + 1))
+            await refund_credit(db, business_id)
             raise
         resp_time = time.time() - start_time
         

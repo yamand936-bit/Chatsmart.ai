@@ -69,7 +69,10 @@ async def get_current_admin(
         raise HTTPException(status_code=403, detail="Not enough permissions or account deactivated")
     return payload
 
-async def get_merchant_tenant(payload: TokenPayload = Depends(get_current_user_payload)) -> uuid.UUID:
+async def get_merchant_tenant(
+    payload: TokenPayload = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+) -> uuid.UUID:
     """
     Core Multi-Tenancy Enforcement.
     Extracts the business_id from the authenticated user token context.
@@ -77,4 +80,12 @@ async def get_merchant_tenant(payload: TokenPayload = Depends(get_current_user_p
     """
     if payload.role != "merchant" or not payload.business_id:
         raise HTTPException(status_code=403, detail="Merchant business context missing or invalid role")
+        
+    from app.models.user import User
+    from sqlalchemy.future import select
+    user = (await db.execute(select(User).where(User.id == uuid.UUID(payload.sub)))).scalar_one_or_none()
+    
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Account deactivated or invalid")
+        
     return uuid.UUID(payload.business_id)

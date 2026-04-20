@@ -156,6 +156,18 @@ class AIEngineService:
         # Apply Model Downgrade for Cost Saving
         target_override = "gpt-4o-mini" if is_simple else None
 
+        # Pre-flight Check: Token Budget Limit via Tiktoken (Fail open safely if missing)
+        try:
+            import tiktoken
+            encoding = tiktoken.get_encoding("o200k_base") # or cl100k_base
+            text_payload = " ".join([str(m["content"]) for m in messages if isinstance(m.get("content"), str)])
+            token_count = len(encoding.encode(text_payload))
+            if token_count > 10000:
+                logger.error(f"Pre-flight abort: Prompt size {token_count} exceeds maximum allowed budget 10000.")
+                return {"ai_output": '{"response": "EOF", "intent": "none"}', "provider": "firewall", "model": "blocked"}
+        except ImportError:
+            pass # Tiktoken missing, skip
+
         try:
             result = await AIRouter.generate(db, messages, force_model=target_override, vision=bool(media_b64))
             cleaned_text = result["text"].strip()

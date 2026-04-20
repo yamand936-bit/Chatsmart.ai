@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict
-from sqlalchemy import String, JSON, Boolean, ForeignKey, Float, Integer
+from sqlalchemy import String, JSON, Boolean, ForeignKey, Float, Integer, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import BaseModel
@@ -7,6 +7,9 @@ import uuid
 
 class Business(BaseModel):
     __tablename__ = "businesses"
+    __table_args__ = (
+        CheckConstraint('message_credits >= 0', name='check_credits_positive'),
+    )
 
     name: Mapped[str] = mapped_column(String(255), index=True)
     business_type: Mapped[str] = mapped_column(String(100), default="retail")

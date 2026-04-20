@@ -3,18 +3,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def safe_create_task(coro, name: str = "UnknownTask"):
+def safe_create_task(coro, name: str = "Unknown Task"):
     """
-    Safely executes an asyncio background task by wrapping it in a try-except block.
-    Prevents unhandled exceptions from silently dying or bubbling up and crashing the event loop.
+    Creates an asyncio task and attaches a callback to catch unhandled exceptions,
+    preventing silent event loop deaths.
     """
-    async def wrapper():
+    task = asyncio.create_task(coro, name=name)
+    
+    def _handle_exception(t):
         try:
-            await coro
+            t.result()
         except asyncio.CancelledError:
-            logger.info(f"Task {name} was cancelled.")
+            pass  # Expected on shutdown
         except Exception as e:
-            logger.error(f"Background generic task '{name}' failed with error: {e}", exc_info=True)
-            # You can also plug in global notifications here if critical.
-
-    return asyncio.create_task(wrapper(), name=name)
+            logger.error(f"Background Task '{name}' crashed: {e}", exc_info=True)
+            
+    task.add_done_callback(_handle_exception)
+    return task

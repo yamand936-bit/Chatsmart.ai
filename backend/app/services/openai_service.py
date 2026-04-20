@@ -25,6 +25,7 @@ class OpenAIService:
             if force_json:
                 kwargs["response_format"] = {"type": "json_object"}
                 
+            kwargs["timeout"] = 8.0
             response = await client.chat.completions.create(**kwargs)
             return response.choices[0].message.content
         except Exception as e:

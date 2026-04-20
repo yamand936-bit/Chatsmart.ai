@@ -38,10 +38,9 @@ class AIRouter:
                 err_str = str(e).upper()
                 if "503" in err_str or "MODEL_CAPACITY_EXHAUSTED" in err_str or "429" in err_str:
                     if attempt == 0:
-                        import asyncio
-                        logger.warning(f"AI Provider Capacity Exhausted (attempt 1). Backing off for 10 seconds: {e}")
-                        await asyncio.sleep(10)
-                        continue
+                        logger.warning(f"AI Provider Capacity Exhausted (attempt 1). Triggering fallback immediately: {e}")
+                        # Immediately failover to prevent blocking worker queue or webhook loop
+                        pass
                     else:
                         logger.warning(f"Retries exhausted for {provider}. Falling back to lighter model.")
                         try:

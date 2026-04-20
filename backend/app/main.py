@@ -38,7 +38,8 @@ async def lifespan(app: FastAPI):
     import asyncio
     
     # Start the async queue consumer for webhooks in the background
-    worker_task = asyncio.create_task(webhook_consumer_loop(), name="WebhookConsumer")
+    from app.core.utils import safe_create_task
+    worker_task = safe_create_task(webhook_consumer_loop(), name="WebhookConsumer")
 
     yield
     # Cleanup on shutdown

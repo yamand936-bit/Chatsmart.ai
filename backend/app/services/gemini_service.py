@@ -40,7 +40,7 @@ class GeminiService:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda p: genai_model.generate_content(p, generation_config=generation_config),
+            lambda p: genai_model.generate_content(p, generation_config=generation_config, request_options={'timeout': 8.0}),
             prompt
         )
 

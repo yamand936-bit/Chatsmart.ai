@@ -261,18 +261,17 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
                         # Pass a SYSTEM directive to AI so it natively asks for Address and phone
                         system_prompt_inj = f"[SYSTEM NOTIFICATION: The user just clicked the 'Buy Now' button for the product: {product.name}. Please acknowledge their order enthusiastically, and then ask them to provide their FULL DELIVERY ADDRESS and PHONE NUMBER rigidly so we can ship the item.]"
                         
-                        ai_resp, intent, _, _, sc = await process_chat_core(
-                            db=db,
-                            business_id=business_id,
-                            customer_platform="telegram",
-                            external_id=cb_user_id,
-                            content=system_prompt_inj,
-                            media_url=None,
-                            media_b64=None
-                        )
-                        
-                        if ai_resp or sc:
-                            await transmit_telegram(config.get("bot_token", ""), chat_id, ai_resp or "", sc)
+                        import json
+                        from app.api.deps import redis_client
+                        payload_data = {
+                            "platform": "telegram_callback",
+                            "business_id": str(business_id),
+                            "config": config,
+                            "cb_user_id": cb_user_id,
+                            "system_prompt_inj": system_prompt_inj,
+                            "chat_id": chat_id
+                        }
+                        await redis_client.lpush("webhook_payloads", json.dumps(payload_data))
             except Exception as e:
                 logger.error(f"Telegram Callback Order failed: {e}")
         return {"status": "success"}
@@ -334,21 +333,16 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
 
     logger.info(f"[TELEGRAM] msg from {user_id} for business {business_id}")
 
-    try:
-        ai_response, intent, _, _, smart_cards = await process_chat_core(
-            db=db, business_id=business_id, customer_platform="telegram",
-            external_id=user_id, content=text_content,
-            media_url=media_url, media_b64=media_b64
-        )
-        if intent == "human_handoff_active":
-            return {"status": "ok"}
-        if ai_response or smart_cards:
-            await transmit_telegram(config.get("bot_token", ""), chat_id, ai_response or "", smart_cards=smart_cards)
-        return {"status": "success"}
-    except Exception as e:
-        logger.error(f"Telegram core logic fail: {e}", exc_info=True)
-        # Always return 200 so Telegram stops retrying
-        return {"status": "error_handled"}
+    import json
+    from app.api.deps import redis_client
+    payload_data = {
+        "platform": "telegram",
+        "business_id": str(business_id),
+        "config": config,
+        "body": message_data
+    }
+    await redis_client.lpush("webhook_payloads", json.dumps(payload_data))
+    return {"status": "success"}
 
 
 # =======================================================

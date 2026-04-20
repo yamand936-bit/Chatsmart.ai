@@ -47,7 +47,8 @@ class NotificationService:
         safe_msg = error_message[:3500] if len(error_message) > 3500 else error_message
         text = f"⚙️ <b>CRITICAL SYSTEM ERROR</b> ⚙️\n\n<b>Context:</b> {error_context}\n<pre><code class=\"language-python\">{safe_msg}</code></pre>"
         
-        asyncio.create_task(NotificationService.send_telegram(settings.ADMIN_TELEGRAM_CHAT_ID, text, parse_mode="HTML"))
+        from app.core.utils import safe_create_task
+        safe_create_task(NotificationService.send_telegram(settings.ADMIN_TELEGRAM_CHAT_ID, text, parse_mode="HTML"))
             
     @staticmethod
     async def send_telegram(chat_id: str, text: str, parse_mode: str = None, bot_token: str = None):

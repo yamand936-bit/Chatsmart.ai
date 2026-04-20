@@ -548,6 +548,51 @@ async def _process_tiktok(db, business_id, config, body):
         logger.error(f"TikTok core logic fail: {e}")
         pass
 
+async def transmit_telegram_wrapper(bot_token, chat_id, text, smart_cards=None):
+    from app.api.routers.integrations import transmit_telegram
+    return await transmit_telegram(bot_token, chat_id, text, smart_cards)
+
+async def _process_telegram(db, business_id, config, body):
+    try:
+        chat_id = body.get("chat", {}).get("id")
+        user_id = str(body.get("from", {}).get("id"))
+        text_content = body.get("text", "")
+        
+        media_b64, media_url = None, None # Add media processing later
+
+        if not text_content.strip() and not media_b64:
+            return
+
+        logger.info(f"[TELEGRAM] msg from {user_id} for business {business_id}")
+
+        ai_response, intent, _, _, smart_cards = await process_chat_core(
+            db=db, business_id=business_id, customer_platform="telegram",
+            external_id=user_id, content=text_content,
+            media_url=media_url, media_b64=media_b64
+        )
+        if intent == "human_handoff_active":
+            return
+        if ai_response or smart_cards:
+            await transmit_telegram_wrapper(config.get("bot_token", ""), chat_id, ai_response or "", smart_cards=smart_cards)
+    except Exception as e:
+        logger.error(f"Telegram worker logic fail: {e}", exc_info=True)
+
+async def _process_telegram_callback(db, business_id, config, payload_data):
+    try:
+        cb_user_id = payload_data.get("cb_user_id")
+        system_prompt_inj = payload_data.get("system_prompt_inj")
+        chat_id = payload_data.get("chat_id")
+        
+        ai_resp, intent, _, _, sc = await process_chat_core(
+            db=db, business_id=business_id, customer_platform="telegram",
+            external_id=cb_user_id, content=system_prompt_inj,
+            media_url=None, media_b64=None
+        )
+        if ai_resp or sc:
+            await transmit_telegram_wrapper(config.get("bot_token", ""), chat_id, ai_resp or "", smart_cards=sc)
+    except Exception as e:
+        logger.error(f"Telegram worker cb logic fail: {e}")
+
 async def webhook_consumer_loop():
     logger.info("Webhook consumer loop started and waiting for events...")
     while True:
@@ -572,6 +617,10 @@ async def webhook_consumer_loop():
                     await _process_instagram(db, business_id, config, body)
                 elif platform == "tiktok":
                     await _process_tiktok(db, business_id, config, body)
+                elif platform == "telegram":
+                    await _process_telegram(db, business_id, config, body)
+                elif platform == "telegram_callback":
+                    await _process_telegram_callback(db, business_id, config, payload_data)
                     
         except asyncio.CancelledError:
             logger.info("Webhook consumer gracefully stopped.")
