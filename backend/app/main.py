@@ -34,8 +34,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to the database: {e}. Crashing!")
         sys.exit(1)
         
+    from app.workers.webhook_worker import webhook_consumer_loop
+    import asyncio
+    
+    # Start the async queue consumer for webhooks in the background
+    worker_task = asyncio.create_task(webhook_consumer_loop(), name="WebhookConsumer")
+
     yield
     # Cleanup on shutdown
+    worker_task.cancel()
     await engine.dispose()
 
 app = FastAPI(
@@ -93,7 +100,7 @@ async def health_check():
 import traceback
 from fastapi.responses import JSONResponse
 from app.services.notification_service import NotificationService
-import asyncio
+from app.core.utils import safe_create_task
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -102,7 +109,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     # Fire off notification without waiting
     error_context = f"Unhandled Exception at {request.method} {request.url.path}"
-    asyncio.create_task(NotificationService.dispatch_admin_error(error_context, f"Exception: {str(exc)}\n\nTraceback:\n{tb_str}"))
+    safe_create_task(NotificationService.dispatch_admin_error(error_context, f"Exception: {str(exc)}\n\nTraceback:\n{tb_str}"), "GlobalErrorDispatch")
     
     return JSONResponse(
         status_code=500,

@@ -20,6 +20,10 @@ from app.services.notification_service import NotificationService
 from typing import Tuple, List, Dict
 import re
 import time
+from app.core.utils import safe_create_task
+
+# Prevent DB/OpenAI Starvation during concurrent Webhook Spikes
+AI_SEMAPHORE = asyncio.Semaphore(15)
 
 def detect_language(text: str) -> str:
     if not text:
@@ -267,7 +271,7 @@ async def process_chat_core(
             async with async_session_maker() as session:
                 await sync_crm_variables(session, str(c_id), vars_dict)
                 
-        asyncio.create_task(run_crm_sync(customer.id, crm_vars))
+        safe_create_task(run_crm_sync(customer.id, crm_vars), "CRMSync")
         
     ai_engine = AIEngineService(
         business_id=str(business.id),
@@ -312,14 +316,15 @@ async def process_chat_core(
             return ai_msg_content, "limit_reached", str(user_msg.id), str(conversation.id), []
             
         try:
-            raw_res = await ai_engine.get_response(
-                db, 
-                content, 
-                conversation, 
-                media_b64=media_b64, 
-                user_msg_id=user_msg.id, 
-                skip_rag=flow_res.get("flow_captured_variable", False)
-            )
+            async with AI_SEMAPHORE:
+                raw_res = await ai_engine.get_response(
+                    db, 
+                    content, 
+                    conversation, 
+                    media_b64=media_b64, 
+                    user_msg_id=user_msg.id, 
+                    skip_rag=flow_res.get("flow_captured_variable", False)
+                )
         except Exception:
             # Refund on failing to reach OpenAI or crash
             await db.execute(update(Business).where(Business.id == business_id).values(message_credits=Business.message_credits + 1))
@@ -410,7 +415,7 @@ async def process_chat_core(
                             custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
 
                             msg_alert = f"🛒 New Order Created!\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nProduct: {matched_product.name}\nPrice: {matched_product.price}"
-                            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "ORDER", msg_alert, custom_bot_token=custom_token))
+                            safe_create_task(NotificationService.dispatch_merchant_alert(business, "ORDER", msg_alert, custom_bot_token=custom_token), "TelegramAlertOrder")
                         elif ai_intent.intent == "suggest_product":
                             smart_cards.append({
                                 "product_id": str(matched_product.id),
@@ -501,7 +506,7 @@ async def process_chat_core(
                                     BusinessFeature.business_id == business_id, BusinessFeature.feature_type == "telegram"))
                                 tg_int = tg_feat.scalar_one_or_none()
                                 custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
-                                asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "APPOINTMENT", msg, custom_bot_token=custom_token))
+                                safe_create_task(NotificationService.dispatch_merchant_alert(business, "APPOINTMENT", msg, custom_bot_token=custom_token), "TelegramAlertApt")
                         else:
                             ai_msg_content = "عذراً، لم أتمكن من فهم صيغة التاريخ والوقت." if detected_lang in ["ar", "Arabic"] else ("Tarih ve saat formatını anlayamadım." if detected_lang in ["tr", "Turkish"] else "I could not understand the date and time format you provided.")
                             intent_value = "error"
@@ -522,7 +527,7 @@ async def process_chat_core(
             custom_token = (tg_int.config or {}).get("bot_token") if tg_int and tg_int.is_active else None
             
             msg_alert = f"🚨 طلب مساعدة وتواصل مع الإدارة!\nالعميل: {customer.name or 'غير معروف'} ({customer.phone or 'بدون رقم'})\nالمنصة: {customer.platform}\n\nيرجى الدخول وتفقد الرسائل أو متابعة الدردشة مباشرة!"
-            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert, custom_bot_token=custom_token))
+            safe_create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg_alert, custom_bot_token=custom_token), "TelegramAlertSupport")
             # ai_msg_content and intent_value stay as the AI set them. The bot will continue interacting.
 
         elif ai_intent.intent == "technical_support":
@@ -542,7 +547,7 @@ async def process_chat_core(
             
             msg = f"Technical Support Request:\nCustomer: {customer.name or 'Unknown'} ({customer.phone or 'No phone'})\nPlatform: {customer.platform}\n\nPlease check your recent chats to assist them."
             import asyncio
-            asyncio.create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg))
+            safe_create_task(NotificationService.dispatch_merchant_alert(business, "SUPPORT", msg), "TelegramAlertSupportEng")
 
         # Let AI handle the language fluidity naturally without overriding
 
@@ -561,10 +566,10 @@ async def process_chat_core(
             pass
             
         import asyncio
-        asyncio.create_task(NotificationService.dispatch_admin_error(
+        safe_create_task(NotificationService.dispatch_admin_error(
             f"AI Engine Failure [Business: {business_id}]", 
             f"Error: {e}\n\n{tb_str}"
-        ))
+        ), "AdminErrorDispatch")
         
         ai_msg_content = "Something went wrong on our end. Please try again in a moment."
         intent_value = "error"
@@ -656,6 +661,6 @@ async def process_chat_core(
         async with async_session_maker() as session:
             await auto_tag_customer(session, str(cid), str(c_id))
             
-    asyncio.create_task(run_tagger(customer.id, conversation.id))
+    safe_create_task(run_tagger(customer.id, conversation.id), "AutoTaggerCrm")
 
     return (ai_msg_content, intent_value, str(user_msg.id), str(conversation.id), smart_cards)
