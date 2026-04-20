@@ -58,6 +58,9 @@ async def update_settings(payload: dict, db: AsyncSession = Depends(get_db), adm
         if key not in ALLOWED_KEYS:
             raise HTTPException(400, f"Invalid key: {key}")
         if key in INTEGER_KEYS:
+            if value is None or value == "" or value == "None":
+                # Default to 0 or bypass instead of crashing
+                value = "0"
             try:
                 int(value)
             except (ValueError, TypeError):
