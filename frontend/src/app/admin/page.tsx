@@ -97,7 +97,7 @@ export default function AdminDashboard() {
   const [showLiveActivity, setShowLiveActivity] = useState(true);
 
   // Set up API client to automatically inject token
-  const apiClient = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || '' });
+  const apiClient = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || '', withCredentials: true });
   apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -425,7 +425,11 @@ export default function AdminDashboard() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
-                   {businesses.map((b) => (
+                   {businesses.filter(b => {
+                      const matchSearch = !searchQuery || (b.name||'').toLowerCase().includes(searchQuery.toLowerCase()) || (b.owner_email||'').toLowerCase().includes(searchQuery.toLowerCase());
+                      const matchPlan = planFilter === 'all' || b.plan_name === planFilter;
+                      return matchSearch && matchPlan;
+                   }).map((b) => (
                     <tr key={b.id} className="hover:bg-indigo-50/30 transition-colors group">
                        <td className="py-4 px-4"><input type="checkbox" checked={selectedIds.includes(b.id)} onChange={() => toggleSelection(b.id)} className="rounded" /></td>
                        <td className="py-4 px-4">
@@ -452,7 +456,11 @@ export default function AdminDashboard() {
                    ))}
                  </tbody>
                </table>
-               {businesses.length === 0 && <div className="text-center py-10 text-slate-500">{tAdmin('table.no_businesses')}</div>}
+               {businesses.filter(b => {
+                      const matchSearch = !searchQuery || (b.name||'').toLowerCase().includes(searchQuery.toLowerCase()) || (b.owner_email||'').toLowerCase().includes(searchQuery.toLowerCase());
+                      const matchPlan = planFilter === 'all' || b.plan_name === planFilter;
+                      return matchSearch && matchPlan;
+                   }).length === 0 && <div className="text-center py-10 text-slate-500">{tAdmin('table.no_businesses')}</div>}
             </div>
           </div>
         )}
