@@ -58,9 +58,15 @@ async def get_current_user_payload(request: Request) -> TokenPayload:
             
     return token_data
 
-async def get_current_admin(payload: TokenPayload = Depends(get_current_user_payload)) -> TokenPayload:
-    if payload.role != "admin":
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+async def get_current_admin(
+    payload: TokenPayload = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+) -> TokenPayload:
+    from app.models.user import User
+    from sqlalchemy.future import select
+    user = (await db.execute(select(User).where(User.id == uuid.UUID(payload.sub), User.is_active == True))).scalar_one_or_none()
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not enough permissions or account deactivated")
     return payload
 
 async def get_merchant_tenant(payload: TokenPayload = Depends(get_current_user_payload)) -> uuid.UUID:

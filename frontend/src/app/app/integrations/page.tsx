@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
     }
   };
 
-  const webhookUrl = businessId ? `${window.location.protocol}//${window.location.host}/api/integrations/whatsapp/${businessId}/webhook` : 'Loading...';
+  const webhookUrl = businessId ? `${window.location.protocol}//${window.location.host}/api/integrations/whatsapp/webhook` : 'Loading...';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

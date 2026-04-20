@@ -355,27 +355,54 @@ async def telegram_webhook(business_id: uuid.UUID, request: Request, db: AsyncSe
 # WHATSAPP (META)
 # =======================================================
 
-@router.get("/whatsapp/{business_id}/webhook")
+@router.get("/whatsapp/webhook")
 async def whatsapp_webhook_verify(
-    business_id: uuid.UUID, 
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Meta webhook challenge verification"""
-    config = await get_feature_config(db, business_id, "whatsapp")
     
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
 
-    if mode == "subscribe" and token == config.get("verify_token"):
+    # Find the business config by verify_token
+    bf_res = await db.execute(
+        select(BusinessFeature).where(
+            BusinessFeature.feature_type == "whatsapp",
+            BusinessFeature.config["verify_token"].astext == token
+        )
+    )
+    feature = bf_res.scalar_one_or_none()
+
+    if mode == "subscribe" and feature and feature.is_active:
         return PlainTextResponse(content=challenge)
     raise HTTPException(status_code=403, detail="Verification failed")
 
-@router.post("/whatsapp/{business_id}/webhook")
-async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    config = await get_feature_config(db, business_id, "whatsapp")
+@router.post("/whatsapp/webhook")
+async def whatsapp_webhook_receive(request: Request, db: AsyncSession = Depends(get_db)):
+    raw_body = await request.body()
+    body = await request.json()
     
+    try:
+        phone_number_id = body["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid metadata structure. phone_number_id missing.")
+        
+    bf_res = await db.execute(
+        select(BusinessFeature).where(
+            BusinessFeature.feature_type == "whatsapp",
+            BusinessFeature.config["phone_number_id"].astext == phone_number_id
+        )
+    )
+    feature = bf_res.scalar_one_or_none()
+    
+    if not feature or not feature.is_active:
+        raise HTTPException(status_code=403, detail="Tenant context invalid or deactivated")
+        
+    business_id = feature.business_id
+    config = feature.config
+
     # WhatsApp app_secret is REQUIRED — reject if not configured.
     app_secret = config.get("app_secret")
     if not app_secret:
@@ -383,7 +410,7 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
             status_code=500,
             detail="WhatsApp app_secret is not configured for this business",
         )
-    raw_body = await request.body()
+        
     sig = request.headers.get("X-Hub-Signature-256")
     if not verify_meta_signature(raw_body, sig, app_secret):
         raise HTTPException(status_code=401, detail="Invalid Meta signature")
@@ -552,22 +579,49 @@ async def whatsapp_webhook_receive(business_id: uuid.UUID, request: Request, db:
 # INSTAGRAM (META)
 # =======================================================
 
-@router.get("/instagram/{business_id}/webhook")
-async def instagram_webhook_verify(business_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)):
+@router.get("/instagram/webhook")
+async def instagram_webhook_verify(request: Request, db: AsyncSession = Depends(get_db)):
     # Meta uses identical Graph validation as WhatsApp
-    config = await get_feature_config(db, business_id, "instagram")
-    
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
 
-    if mode == "subscribe" and token == config.get("verify_token"):
+    bf_res = await db.execute(
+        select(BusinessFeature).where(
+            BusinessFeature.feature_type == "instagram",
+            BusinessFeature.config["verify_token"].astext == token
+        )
+    )
+    feature = bf_res.scalar_one_or_none()
+
+    if mode == "subscribe" and feature and feature.is_active:
         return PlainTextResponse(content=challenge)
     raise HTTPException(status_code=403, detail="Verification failed")
 
-@router.post("/instagram/{business_id}/webhook")
-async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)):
-    config = await get_feature_config(db, business_id, "instagram")
+@router.post("/instagram/webhook")
+async def instagram_webhook_receive(request: Request, db: AsyncSession = Depends(get_db)):
+    raw_body = await request.body()
+    body = await request.json()
+    
+    try:
+        page_id = body.get("entry", [{}])[0].get("id")
+        if not page_id: raise KeyError()
+    except (KeyError, IndexError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid metadata structure. page_id missing.")
+        
+    bf_res = await db.execute(
+        select(BusinessFeature).where(
+            BusinessFeature.feature_type == "instagram",
+            BusinessFeature.config["page_id"].astext == page_id
+        )
+    )
+    feature = bf_res.scalar_one_or_none()
+    
+    if not feature or not feature.is_active:
+        raise HTTPException(status_code=403, detail="Tenant context invalid or deactivated")
+        
+    business_id = feature.business_id
+    config = feature.config
     
     # Instagram app_secret is REQUIRED — reject if not configured.
     app_secret = config.get("app_secret")
@@ -576,12 +630,9 @@ async def instagram_webhook_receive(business_id: uuid.UUID, request: Request, db
             status_code=500,
             detail="Instagram app_secret is not configured for this business",
         )
-    raw_body = await request.body()
     sig = request.headers.get("X-Hub-Signature-256")
     if not verify_meta_signature(raw_body, sig, app_secret):
         raise HTTPException(status_code=401, detail="Invalid Meta signature")
-
-    body = await request.json()
     try:
         for entry in body.get("entry", []):
             page_id = entry.get("id")

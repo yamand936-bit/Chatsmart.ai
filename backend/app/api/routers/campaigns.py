@@ -86,13 +86,14 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
     async with async_session_maker() as session:
         for cid in customer_ids:
             try:
-                cust_res = await session.execute(select(Customer).where(Customer.id == uuid.UUID(cid)))
+                cust_res = await session.execute(select(Customer).where(Customer.id == uuid.UUID(cid), Customer.business_id == uuid.UUID(business_id)))
                 customer = cust_res.scalar_one_or_none()
                 if not customer: continue
                 
                 conv_res = await session.execute(
                     select(Conversation).where(
-                        Conversation.customer_id == customer.id
+                        Conversation.customer_id == customer.id,
+                        Conversation.business_id == uuid.UUID(business_id)
                     ).order_by(Conversation.created_at.desc()).limit(1)
                 )
                 conv = conv_res.scalar_one_or_none()
@@ -107,7 +108,7 @@ async def process_campaign_batch(business_id: str, customer_ids: list, instructi
                 from app.models.domain import TemplateMessage
                 template = None
                 if template_id:
-                    t_res = await session.execute(select(TemplateMessage).where(TemplateMessage.id == uuid.UUID(template_id)))
+                    t_res = await session.execute(select(TemplateMessage).where(TemplateMessage.id == uuid.UUID(template_id), TemplateMessage.business_id == uuid.UUID(business_id)))
                     template = t_res.scalar_one_or_none()
 
                 personalized_message = ""

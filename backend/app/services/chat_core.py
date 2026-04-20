@@ -294,14 +294,36 @@ async def process_chat_core(
     smart_cards = []
     try:
         start_time = time.time()
-        raw_res = await ai_engine.get_response(
-            db, 
-            content, 
-            conversation, 
-            media_b64=media_b64, 
-            user_msg_id=user_msg.id, 
-            skip_rag=flow_res.get("flow_captured_variable", False)
+        
+        # 1. Atomic DB Deduction
+        from sqlalchemy import update
+        deduct_res = await db.execute(
+            update(Business)
+            .where(Business.id == business_id, Business.message_credits > 0)
+            .values(message_credits=Business.message_credits - 1)
+            .returning(Business.message_credits)
         )
+        if deduct_res.scalar() is None:
+            # Handled concurrent race losing condition
+            ai_msg_content = "عذراً، لقد نفد رصيد الرسائل الخاص بك. يرجى التواصل مع الإدارة." if detected_lang in ["ar", "Arabic"] else ("Message credits exhausted." if detected_lang in ["tr", "Turkish"] else "Message credits exhausted.")
+            bot_msg = Message(business_id=business_id, conversation_id=conversation.id, sender_type="bot", content=ai_msg_content, intent="limit_reached", model_used="none", token_count=0)
+            db.add(bot_msg)
+            await db.commit()
+            return ai_msg_content, "limit_reached", str(user_msg.id), str(conversation.id), []
+            
+        try:
+            raw_res = await ai_engine.get_response(
+                db, 
+                content, 
+                conversation, 
+                media_b64=media_b64, 
+                user_msg_id=user_msg.id, 
+                skip_rag=flow_res.get("flow_captured_variable", False)
+            )
+        except Exception:
+            # Refund on failing to reach OpenAI or crash
+            await db.execute(update(Business).where(Business.id == business_id).values(message_credits=Business.message_credits + 1))
+            raise
         resp_time = time.time() - start_time
         
         ai_intent = ai_engine.validate_intent(raw_res["ai_output"])
@@ -603,10 +625,7 @@ async def process_chat_core(
         usage_today.tokens_used += tokens_used_now
         usage_today.request_count = (usage_today.request_count or 0) + 1
 
-    # Decrement message layout visually
-    if intent_value != "business_disabled" and intent_value != "limit_reached" and provider != "unknown":
-        business.message_credits -= 1
-        db.add(business)
+    # Decrement already handled atomically above
     # ── 10. Log detailed AI Analytics ─────────────────────────────────────────
     if provider != "unknown":
         input_tokens = TokenService.count(content)
