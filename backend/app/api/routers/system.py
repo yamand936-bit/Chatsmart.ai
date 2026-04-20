@@ -4,7 +4,7 @@ from app.db.session import get_db
 from app.services.settings_service import SettingsService
 from app.api.deps import get_current_admin, redis_client
 
-router = APIRouter(prefix="/system", tags=["System"])
+router = APIRouter(tags=["System"])
 
 ALLOWED_KEYS = [
     "platform_name",
