@@ -124,7 +124,7 @@ export default function AdminDashboard() {
         apiClient.get('/api/admin/metrics'),
         apiClient.get('/api/admin/health'),
         apiClient.get('/api/admin/logs?limit=50'),
-        apiClient.get('/api/admin/config')
+        apiClient.get('/api/system/settings')
       ]);
       setBusinesses(bData.data || []);
       setMetrics(mData.data);
