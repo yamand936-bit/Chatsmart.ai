@@ -21,6 +21,17 @@ import uuid
 
 router = APIRouter()
 
+# BACKWARD COMPATIBILITY: Import system settings to serve old frontend versions
+from app.api.routers.system import get_settings as _sys_get, update_settings as _sys_update
+
+@router.get("/config")
+async def get_config_legacy(db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    result = await _sys_get(db, admin)
+    return {"status": "ok", "data": {"config": result}}
+
+@router.post("/config")
+async def update_config_legacy(payload: dict, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    return await _sys_update(payload, db, admin)
 class CreateBusinessRequest(BaseModel):
     name: str
     owner_email: EmailStr
