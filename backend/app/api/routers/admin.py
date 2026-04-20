@@ -664,8 +664,8 @@ async def configure_business_feature(
     await db.commit()
     return {"status": "ok", "message": f"Feature {feature_type} configured successfully."}
 
-@router.post("/subscribe")
-async def create_subscription_checkout(data: SubscribeRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+@router.post("/businesses/{business_id}/subscribe")
+async def create_subscription_checkout(business_id: uuid.UUID, data: SubscribeRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
     valid_plans = ["free", "pro", "enterprise"]
     if data.plan not in valid_plans:
         raise HTTPException(status_code=400, detail="Invalid plan selected")
