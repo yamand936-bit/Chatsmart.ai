@@ -32,10 +32,15 @@ class GeminiService:
         
         prompt = "\n\n".join(parts)
 
+        generation_config = genai.types.GenerationConfig(
+            max_output_tokens=500,
+            temperature=0.3
+        )
+
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            genai_model.generate_content,
+            lambda p: genai_model.generate_content(p, generation_config=generation_config),
             prompt
         )
 

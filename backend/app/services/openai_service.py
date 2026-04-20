@@ -19,6 +19,8 @@ class OpenAIService:
             kwargs = {
                 "model": model,
                 "messages": messages,
+                "max_tokens": 500,
+                "temperature": 0.3
             }
             if force_json:
                 kwargs["response_format"] = {"type": "json_object"}

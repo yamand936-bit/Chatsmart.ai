@@ -115,7 +115,7 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [b, m, h, l, c] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         apiClient.get('/api/admin/businesses'),
         apiClient.get('/api/admin/metrics'),
         apiClient.get('/api/admin/health'),
@@ -123,6 +123,18 @@ export default function AdminDashboard() {
         apiClient.get('/api/system/settings')
       ]);
 
+      // Check for auth rejection in any of the settled promises
+      for (const res of results) {
+        if (res.status === 'rejected') {
+          const status = res.reason?.response?.status;
+          if (status === 401 || status === 403) {
+            window.location.href = '/login';
+            return;
+          }
+        }
+      }
+
+      const [b, m, h, l, c] = results;
       if (b.status === 'fulfilled') setBusinesses(b.value.data.data || []);
       if (m.status === 'fulfilled') setMetrics(m.value.data.data);
       if (h.status === 'fulfilled') setSystemHealth(h.value.data);
@@ -132,9 +144,7 @@ export default function AdminDashboard() {
         setMaintenanceEnabled(c.value.data.config?.maintenance_mode || false);
       }
     } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-         window.location.href = '/login';
-      }
+       console.error("fetchData error", err);
     }
   };
 
