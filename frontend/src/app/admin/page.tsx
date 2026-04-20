@@ -10,8 +10,6 @@ const AdminCharts = dynamic(() => import('@/components/AdminCharts'), {
   loading: () => <Skeleton className="h-80 rounded-xl w-full" />,
 });
 
-
-
 const AdminHealthTab = dynamic(() => import('@/components/AdminHealthTab'), {
   ssr: false,
   loading: () => <Skeleton className="h-60" />,
@@ -22,461 +20,282 @@ const AdminMRRSummary = dynamic(() => import('@/components/AdminMRRSummary'), {
   loading: () => <div className="p-10 text-center"><Skeleton className="h-60" /></div>,
 });
 
+
 const Sparkline = ({ data }: { data: number[] }) => {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data, 1);
   return (
-    <div className="flex items-end h-[18px] gap-0.5 mt-3">
-      {data.map((val, i) => (
-        <div key={i} className="flex-1 bg-blue-100 rounded-sm transition-all hover:bg-blue-400 group-hover:bg-blue-200" title={val.toString()} style={{ height: `${Math.max((val / max) * 100, 10)}%` }}></div>
-      ))}
+    <div className="flex items-end gap-1 h-8 mt-2 opacity-80" aria-hidden="true">
+      {data.map((val, i) => {
+        const heightPct = Math.max(10, (val / max) * 100);
+        return (
+           <div 
+             key={i} 
+             className="w-full bg-slate-300 dark:bg-slate-600 rounded-t-sm transition-all hover:bg-slate-400" 
+             style={{ height: `${heightPct}%` }}
+             title={val.toString()}
+           />
+        );
+      })}
     </div>
   );
 };
 
-const StatCard = ({ title, value, icon, trend }: { title: string, value: string | number, icon: string, trend?: number[] }) => (
-  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition group overflow-hidden relative">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-1 font-medium">{title}</p>
-        <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value}</p>
-      </div>
-      <div className="text-3xl bg-blue-50 w-12 h-12 flex items-center justify-center rounded-lg">{icon}</div>
-    </div>
-    {trend && trend.length > 0 && <Sparkline data={trend} />}
+const StatCard = ({ title, value, icon, trend }: { title: string; value: string | number; icon: string; trend?: number[] }) => (
+  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col hover:shadow-md transition">
+     <div className="flex items-center gap-3 mb-2">
+       <span className="text-2xl">{icon}</span>
+       <span className="font-bold text-slate-800 text-sm tracking-wide bg-slate-100 px-2 py-0.5 rounded uppercase">{title}</span>
+     </div>
+     <div className="text-3xl font-black text-slate-900 mt-auto">{value}</div>
+     {trend && <Sparkline data={trend} />}
   </div>
 );
 
 export default function AdminDashboard() {
   const tAdmin = useTranslations('admin');
-  const tCommon = useTranslations('common');
   const tSystem = useTranslations('system');
+  const tCommon = useTranslations('common');
+  
   const locale = useLocale();
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
-  const [businesses, setBusinesses] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [systemHealth, setSystemHealth] = useState<any>(null);
-  const [logSearch, setLogSearch] = useState('');
-    const [showLiveActivity, setShowLiveActivity] = useState(true);
-const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'>('overview');
   const [activeSettingsView, setActiveSettingsView] = useState<'general' | 'plans' | 'logs'>('general');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  // Filtering & Batch
-  const [searchQuery, setSearchQuery] = useState('');
-  const [planFilter, setPlanFilter] = useState('all');
-  const [usageGtFilter, setUsageGtFilter] = useState<number | ''>('');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkAction, setBulkAction] = useState('');
-  const [bulkPlan, setBulkPlan] = useState('pro');
-  const [bulkTokens, setBulkTokens] = useState(100000);
-  const [bulkCredits, setBulkCredits] = useState(500);
-
-  // New States for Edit / Settings Modal
-  const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
-  const [selectedBusinessForSettings, setSelectedBusinessForSettings] = useState<any>(null);
-
-  // System Settings State
+  
+  const [businesses, setBusinesses] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
   const [systemSettings, setSystemSettings] = useState<any>({});
-  const [savingSettings, setSavingSettings] = useState(false);
-
-  // Form State
+  
   const [name, setName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
   const [businessType, setBusinessType] = useState('retail');
+  const [editingBusinessId, setEditingBusinessId] = useState<string | null>(null);
+  
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState({ type: '', text: '' });
+  const [savingSettings, setSavingSettings] = useState(false);
+  
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [selectedPlanBusinessId, setSelectedPlanBusinessId] = useState('');
+  const [upgradeMsg, setUpgradeMsg] = useState({ type: '', text: '' });
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [logSearch, setLogSearch] = useState('');
+  
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState('');
+  const [bulkPlan, setBulkPlan] = useState('free');
+  const [bulkCredits, setBulkCredits] = useState(0);
 
-  // Feature Configs
-  const [enTg, setEnTg] = useState(false);
-  const [tgToken, setTgToken] = useState('');
-  const [tgWebhook, setTgWebhook] = useState('');
+  const [selectedBusinessForSettings, setSelectedBusinessForSettings] = useState<any>(null);
+  const [showLiveActivity, setShowLiveActivity] = useState(true);
 
-  const [enWa, setEnWa] = useState(false);
-  const [waPhone, setWaPhone] = useState('');
-  const [waToken, setWaToken] = useState('');
-  const [waAppSecret, setWaAppSecret] = useState('');
+  // Set up API client to automatically inject token
+  const apiClient = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || '' });
+  apiClient.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  });
 
   useEffect(() => {
-    fetchBusinesses();
-  }, [searchQuery, planFilter, usageGtFilter]);
-
-  useEffect(() => {
-    console.log("AdminDashboard mounted: Initializing SSE/Polling");
-    fetchData(); // initial fetch for metrics and logs
-    
-    // Auto-refresh metrics and feeds every 30 seconds
-    const intervalId = setInterval(() => {
-       console.log("Auto-refreshing dashboard data...");
-       fetchData();
-    }, 30000);
-    
-    return () => clearInterval(intervalId);
+    const v = localStorage.getItem('hideLiveActivity');
+    if (v === 'true') setShowLiveActivity(false);
+    fetchData();
+    const iv = setInterval(fetchData, 30000);
+    return () => clearInterval(iv);
   }, []);
 
-  const fetchBusinesses = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      if (planFilter && planFilter !== 'all') params.append('plan', planFilter);
-      if (usageGtFilter !== '') params.append('usage_gt', String(usageGtFilter));
-
-      const bizRes = await axios.get(`/api/admin/businesses?${params.toString()}`, { withCredentials: true });
-      if (bizRes.data && bizRes.data.data) {
-        setBusinesses(bizRes.data.data);
-      } else {
-        setBusinesses([]);
-      }
-    } catch (error) {
-      console.error("Failed to load businesses:", error);
-    }
+  const toggleActivity = (show: boolean) => {
+    setShowLiveActivity(show);
+    localStorage.setItem('hideLiveActivity', (!show).toString());
   };
 
   const fetchData = async () => {
-    fetchBusinesses();
-    
     try {
-      const logsRes = await axios.get(`/api/admin/logs?limit=15`, { withCredentials: true });
-      if (logsRes.data && logsRes.data.data) {
-        setLogs(logsRes.data.data);
+      const [{ data: bData }, { data: mData }, { data: hData }, { data: lData }, { data: cfg }] = await Promise.all([
+        apiClient.get('/api/admin/businesses'),
+        apiClient.get('/api/admin/metrics'),
+        apiClient.get('/api/admin/health'),
+        apiClient.get('/api/admin/logs?limit=50'),
+        apiClient.get('/api/admin/config')
+      ]);
+      setBusinesses(bData.data || []);
+      setMetrics(mData.data);
+      setSystemHealth(hData.data);
+      setLogs(lData.data || []);
+      setSystemSettings(cfg?.config || {});
+      setMaintenanceEnabled(cfg?.config?.maintenance_mode || false);
+    } catch (err: any) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+         window.location.href = '/login';
       }
-    } catch (error) {
-      console.warn("Failed to load logs:", error);
-    }
-
-    try {
-      const metRes = await axios.get(`/api/admin/metrics`, { withCredentials: true });
-      if (metRes.data) {
-        setMetrics(metRes.data);
-      }
-    } catch (error) {
-      console.error("Failed to load metrics:", error);
-    }
-    
-    try {
-       const healthRes = await axios.get(`/api/admin/health`, { withCredentials: true });
-       if (healthRes.data?.data) {
-          setSystemHealth(healthRes.data.data);
-       }
-    } catch(e) {
-       console.error("Failed to load health", e);
-    }
-
-    try {
-      const settingsRes = await axios.get(`/api/system/settings`, { withCredentials: true });
-      if (settingsRes.data && settingsRes.data.data) {
-        setSystemSettings(settingsRes.data.data);
-      } else if (settingsRes.data) {
-        setSystemSettings(settingsRes.data);
-      }
-    } catch (error) {
-      console.warn("Settings failed to load:", error);
     }
   };
-
-  const resetForm = () => {
-    setName('');
-    setOwnerEmail('');
-    setOwnerPassword('');
-    setBusinessType('retail');
-    setEnTg(false);
-    setTgToken('');
-    setTgWebhook('');
-    setEnWa(false);
-    setWaPhone('');
-    setWaToken('');
-    setWaAppSecret('');
-    setEditingBusinessId(null);
-    setCreateMsg({ type: '', text: '' });
-  };
-
-  const handleTabChange = (tab: any) => {
-    setActiveTab(tab);
-    if (tab !== 'create') {
-      resetForm();
-    }
-  };
-
-  const handleBulkAction = async () => {
-    if (selectedIds.length === 0) return alert('Select businesses first');
-    if (!bulkAction) return alert('Select an action');
-
-    if (!window.confirm(`Are you sure you want to apply this action to ${selectedIds.length} businesses?`)) return;
-
-    try {
-      setCreating(true);
-      if (bulkAction === 'plan') {
-         await axios.post('/api/admin/businesses/batch/plan', { business_ids: selectedIds, new_plan: bulkPlan }, { withCredentials: true });
-      } else if (bulkAction === 'tokens') {
-         await axios.post('/api/admin/businesses/batch/tokens', { business_ids: selectedIds, token_limit: bulkTokens }, { withCredentials: true });
-      } else if (bulkAction === 'credits') {
-         await axios.post('/api/admin/businesses/batch/credits', { business_ids: selectedIds, credits_to_add: bulkCredits }, { withCredentials: true });
-      }
-      setCreateMsg({ type: 'success', text: 'Batch action completed successfully.' });
-      setSelectedIds([]);
-      fetchBusinesses();
-    } catch (e) {
-      alert('Batch action failed.');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const toggleSelection = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const toggleAll = () => {
-    if (selectedIds.length === businesses.length) setSelectedIds([]);
-    else setSelectedIds(businesses.map(b => b.id));
-  };
-
-  const handleSaveSystemSettings = async () => {
-    setSavingSettings(true);
-    try {
-      await axios.post(`/api/system/settings`, { settings: systemSettings }, { withCredentials: true });
-      alert(tSystem('saved') || "Saved successfully");
-    } catch (e) {
-      console.error(e);
-      alert("Failed to save settings.");
-    }
-    setSavingSettings(false);
-  };
-
-  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
-
-  const handleToggleMaintenance = async () => {
-    if (!window.confirm("Are you sure you want to toggle Maintenance Mode? When enabled, merchants will not be able to log in.")) return;
-    try {
-      const res = await axios.post('/api/admin/system/maintenance', { enabled: !maintenanceEnabled }, { withCredentials: true });
-      if (res.data.status === 'ok') {
-         setMaintenanceEnabled(res.data.maintenance_enabled);
-         alert(`Maintenance mode is now ${res.data.maintenance_enabled ? 'ON' : 'OFF'}`);
-      }
-    } catch (e) {
-      alert('Failed to toggle maintenance mode');
-    }
-  };
-
-  const [selectedPlanBusinessId, setSelectedPlanBusinessId] = useState<string>('');
-  const [upgradeMsg, setUpgradeMsg] = useState({ type: '', text: '' });
-
-  const handleUpgrade = async (plan: string) => {
-    
-    if (!selectedPlanBusinessId) {
-      alert(tAdmin('plans.select_business_first') || 'Select a business first');
-      return;
-    }
-    
-    try {
-      setCreating(true);
-      const res = await axios.post(`/api/admin/subscribe`, {
-        business_id: selectedPlanBusinessId,
-        plan: plan
-      }, { withCredentials: true });
-      
-      // Optimistic update so UI instantly changes to "Pro" or "Enterprise" without waiting/caching
-      setBusinesses(prev => prev.map(b => 
-        b.id === selectedPlanBusinessId 
-        ? { ...b, plan_name: plan, token_limit: plan === 'free' ? 10000 : plan === 'pro' ? 100000 : -1 }
-        : b
-      ));
-      
-      setUpgradeMsg({ type: 'success', text: res.data.message || "Plan updated successfully" });
-      setTimeout(() => setUpgradeMsg({ type: '', text: '' }), 5000);
-      
-      fetchData(); // Refreshes the local dashboard data in background
-      
-    } catch (e: any) {
-      console.error(e);
-      setUpgradeMsg({ type: 'error', text: e?.response?.data?.detail || 'Error upgrading plan' });
-      setTimeout(() => setUpgradeMsg({ type: '', text: '' }), 5000);
-    } finally {
-      setCreating(false);
-    }
-  };
-
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     setCreateMsg({ type: '', text: '' });
+    
     try {
-      let targetBusinessId = editingBusinessId;
-
       if (editingBusinessId) {
-        // Update Business (PUT)
-        await axios.put(`/api/admin/businesses/${editingBusinessId}`, {
-          name,
-          business_type: businessType
-        }, { withCredentials: true });
-        
-        setCreateMsg({ type: 'success', text: tAdmin('table.update_success') || tCommon('success') });
+        await apiClient.patch(`/api/admin/businesses/${editingBusinessId}`, { 
+           name, 
+           business_type: businessType, 
+           owner_password: ownerPassword || undefined 
+        });
+        setCreateMsg({ type: 'success', text: 'Business updated successfully' });
       } else {
-        // Create Business (POST)
-        const res = await axios.post(`/api/admin/businesses`, {
-          name,
-          owner_email: ownerEmail,
-          owner_password: ownerPassword,
-          business_type: businessType
-        }, { withCredentials: true });
-
-        targetBusinessId = res.data.business_id;
-        setCreateMsg({ type: 'success', text: tAdmin('create.success') || tCommon('success') });
+        await apiClient.post('/api/admin/businesses', { 
+           name, 
+           business_type: businessType, 
+           owner_email: ownerEmail, 
+           owner_password: ownerPassword 
+        });
+        setCreateMsg({ type: 'success', text: 'Business details processed. Syncing bot flows in background...' });
       }
-
-      // Configure Telegram
-      if (enTg) {
-        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/telegram`, {
-          is_active: true,
-          config: { bot_token: tgToken, webhook_secret: tgWebhook }
-        }, { withCredentials: true });
-      } else if (editingBusinessId) {
-        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/telegram`, {
-          is_active: false,
-          config: {}
-        }, { withCredentials: true });
-      }
-
-      // Configure WhatsApp
-      if (enWa) {
-        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
-          is_active: true,
-          config: { phone_number_id: waPhone, access_token: waToken, app_secret: waAppSecret }
-        }, { withCredentials: true });
-      } else if (editingBusinessId) {
-        await axios.post(`/api/admin/businesses/${targetBusinessId}/features/whatsapp`, {
-          is_active: false,
-          config: {}
-        }, { withCredentials: true });
-      }
-
-      await fetchData();
-      setIsCreateModalOpen(false);
-      resetForm();
-
+      setTimeout(() => { setIsCreateModalOpen(false); fetchData(); }, 2000);
     } catch (err: any) {
-      setCreateMsg({ type: 'error', text: err?.response?.data?.detail || tCommon('error') });
+      setCreateMsg({ type: 'error', text: err.response?.data?.detail || 'An error occurred' });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleEdit = async (id: string) => {
-    console.log('handleEdit function started for ID:', id);
-    setCreateMsg({ type: '', text: '' });
+  const handleDeleteBusiness = async (id: string) => {
+    if (!window.confirm("Are you sure you want to completely delete this business? All data will be lost.")) return;
     try {
-      const url = `/api/admin/businesses/${id}`;
-      console.log('Executing GET request to:', url);
-      const res = await axios.get(url, { withCredentials: true });
-      console.log('GET /businesses/{id} Response:', res.data);
-      const b = res.data.data;
-      setName(b.name || '');
-      setBusinessType(b.business_type || 'retail');
+      await apiClient.delete(`/api/admin/businesses/${id}`);
+      setBusinesses(businesses.filter(b => b.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete business");
+    }
+  };
+
+  const resetForm = () => {
+     setEditingBusinessId(null);
+     setName('');
+     setOwnerEmail('');
+     setOwnerPassword('');
+     setBusinessType('retail');
+     setCreateMsg({ type: '', text: '' });
+  };
+  
+  const handleEdit = (id: string) => {
+     const b = businesses.find(x => x.id === id);
+     if (b) {
+        setEditingBusinessId(b.id);
+        setName(b.name);
+        setOwnerEmail(b.owner_email);
+        setOwnerPassword('');
+        setBusinessType(b.business_type || 'retail');
+        setIsCreateModalOpen(true);
+     }
+  };
+
+  const handleSaveSystemSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await apiClient.post('/api/admin/config', systemSettings);
+      alert('Settings saved!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+     const newState = !maintenanceEnabled;
+     const updated = { ...systemSettings, maintenance_mode: newState };
+     setSystemSettings(updated);
+     setMaintenanceEnabled(newState);
+     try {
+       await apiClient.post('/api/admin/config', updated);
+     } catch(err) {
+        // revert on fail
+     }
+  };
+
+  const handleUpgrade = async (planName: string) => {
+     if(!selectedPlanBusinessId) return;
+     setCreating(true);
+     try {
+        await apiClient.post(`/api/admin/businesses/${selectedPlanBusinessId}/subscribe`, { plan: planName, business_id: selectedPlanBusinessId });
+        setUpgradeMsg({ type: 'success', text: `Successfully upgraded to ${planName}` });
+        fetchData();
+     } catch (err: any) {
+        setUpgradeMsg({ type: 'error', text: err.response?.data?.detail || 'Upgrade failed' });
+     } finally {
+        setCreating(false);
+     }
+  };
+
+  const handleImpersonate = async (id: string) => {
+      try {
+          const res = await apiClient.post(`/api/admin/impersonate/${id}`);
+          if(res.data.token) {
+              localStorage.setItem('token', res.data.token);
+              window.location.href = '/app';
+          }
+      } catch (err) {
+          alert('Failed to impersonate');
+      }
+  };
+  
+  const toggleAll = (e: any) => {
+      if (e.target.checked) setSelectedIds(businesses.map(b => b.id));
+      else setSelectedIds([]);
+  };
+
+  const toggleSelection = (id: string) => {
+      setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkAction = async () => {
+      if (!bulkAction || selectedIds.length === 0) return;
+      if (!window.confirm(`Apply ${bulkAction} to ${selectedIds.length} merchants?`)) return;
       
-      const features = b.features || {};
-      if (features.telegram) {
-        setEnTg(true);
-        setTgToken(features.telegram.bot_token || '');
-        setTgWebhook(features.telegram.webhook_secret || '');
-      } else {
-        setEnTg(false);
-        setTgToken('');
-        setTgWebhook('');
+      try {
+         if (bulkAction === 'plan') {
+            await Promise.all(selectedIds.map(id => apiClient.post(`/api/admin/businesses/${id}/subscribe`, { plan: bulkPlan, business_id: id })));
+         } else if (bulkAction === 'credits') {
+            await apiClient.post('/api/admin/businesses/batch/credits', { business_ids: selectedIds, credits: bulkCredits });
+         }
+         setSelectedIds([]);
+         setBulkAction('');
+         fetchData();
+         alert('Bulk action completed!');
+      } catch(err) {
+         console.error(err);
+         alert('Failed bulk action');
       }
-
-      if (features.whatsapp) {
-        setEnWa(true);
-        setWaPhone(features.whatsapp.phone_number_id || '');
-        setWaToken(features.whatsapp.access_token || '');
-        setWaAppSecret(features.whatsapp.app_secret || '');
-      } else {
-        setEnWa(false);
-        setWaPhone('');
-        setWaToken('');
-        setWaAppSecret('');
-      }
-
-      setEditingBusinessId(b.id);
-      setIsCreateModalOpen(true);
-    } catch (error: any) {
-      console.error('Failed to fetch business details', error?.response?.data || error);
-      alert('Failed to fetch business details');
-    }
   };
 
-
-
-  const handleToggleStatus = async (id: string, currentStatus: string) => {
-    console.log('handleToggleStatus function started for ID:', id, 'Current Status:', currentStatus);
-    const isInactive = currentStatus === 'inactive';
-    const confirmMessage = isInactive ? (tAdmin('table.confirm_enable') || 'Confirm enable') : (tAdmin('table.confirm_disable') || 'Confirm disable');
-    if (!window.confirm(confirmMessage)) {
-      console.log('Status toggle canceled by user');
-      return;
-    }
-    
-    try {
-      console.log('Executing PATCH request to status endpoint');
-      setBusinesses(prev => prev.map(b => b.id === id ? { ...b, status: isInactive ? 'active' : 'inactive' } : b)); // Optimistic UI
-      const res = await axios.patch(`/api/admin/businesses/${id}/status`, {
-        status: isInactive ? 'active' : 'inactive'
-      }, { withCredentials: true });
-      console.log('PATCH response:', res.data);
-      fetchData();
-    } catch (error: any) {
-      console.error('Failed to update status', error?.response?.data || error);
-      fetchData(); // Rollback on failure
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-700 border-green-200';
-      case 'inactive': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
-
-  const handleImpersonate = async (businessId: string) => {
-    const newWindow = window.open('', '_blank');
-    if (!newWindow) {
-      alert("Please allow popups to use the Impersonate feature.");
-      return;
-    }
-    newWindow.document.write('<div style="font-family:sans-serif;text-align:center;margin-top:20%;"><h2>Redirecting securely to Merchant Dashboard...</h2></div>');
-    
-    try {
-       const res = await axios.post(`/api/admin/impersonate/${businessId}`, {}, {withCredentials: true});
-       const token = res.data.token;
-       newWindow.location.href = `/app?impersonate_token=${token}`;
-    } catch(err) {
-       console.error("Failed to impersonate", err);
-       newWindow.close();
-       alert("Failed to impersonate merchant. See console for details.");
-    }
-  };
-
-  const getPlanCostPer1k = (planName: string) => {
-    if(planName === 'enterprise') return 0.015;
-    if(planName === 'pro') return 0.002;
-    return 0.0015; // free
-  };
-
-  const getPlanBasePrice = (planName: string) => {
-    if(planName === 'enterprise') return 199;
-    if(planName === 'pro') return 49;
-    return 0; // free
+  const getStatusColor = (s: string) => {
+     if (!s) return 'bg-slate-100 text-slate-800';
+     const st = s.toLowerCase();
+     if (st === 'active') return 'bg-green-100 text-green-700';
+     if (st === 'trial') return 'bg-blue-100 text-blue-700';
+     if (st === 'expired' || st === 'suspended') return 'bg-red-100 text-red-700';
+     return 'bg-slate-100 text-slate-800';
   };
 
   const profitData = businesses.map((b) => {
-      const usage = b.token_usage || 0;
-      const plan = b.plan_name || 'free';
-      const cost = (usage / 1000) * getPlanCostPer1k(plan);
-      const profit = getPlanBasePrice(plan) - cost;
+      // Mocked calculation for MRR summary 
+      let cost = (b.token_usage || 0) * 0.000015;
+      let profit = 0;
+      if (b.plan_name === 'pro') profit = 49 - cost;
+      if (b.plan_name === 'enterprise') profit = 199 - cost;
       
       const res: any = {
          name: b.name,
@@ -487,13 +306,12 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
       const tokenKey = tAdmin('economic.total_tokens') || 'Tokens';
       const expectKey = tAdmin('forecast.expected') || 'Expected Profit';
       
-      res[tokenKey] = usage;
+      res[tokenKey] = b.token_usage || 0;
       res[expectKey] = parseFloat((profit * 1.15).toFixed(2));
       
       return res;
   });
 
-  // Force AST recompilation to invalidate Next.js corrupted cache
   return (
     <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen" dir={dir}>
       {/* LEFT SIDEBAR */}
@@ -514,8 +332,7 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
               ⚙️ {tAdmin('tabs.settings')}
            </button>
         </nav>
-      </aside>)}
-      {!showLiveActivity && <button onClick={() => setShowLiveActivity(true)} className="fixed bottom-6 right-6 bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 z-50">📡 Activity</button>}
+      </aside>
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-8 overflow-y-auto">
@@ -527,6 +344,7 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
             <h2 className="text-2xl font-bold text-slate-800">{tAdmin('workspaces.system_overview')}</h2>
             
             <div className="mb-6"><AdminHealthTab /></div>
+            
             {/* Top Stat Cards */}
             {metrics && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -652,7 +470,6 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
                {activeSettingsView === 'general' && (
                    <div className="space-y-6">
-                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                            <div>
                               <label className="block text-sm font-medium text-slate-700 mb-1">Platform Name</label>
@@ -670,9 +487,10 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
                               </select>
                            </div>
                       </div>
-                      <div className="flex items-center justify-between border-b pb-4 mb-4">
+
+                      <div className="flex items-center justify-between border-b pb-4">
                          <div>
-<h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
+                            <h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
                             <p className="text-sm text-slate-500">{tAdmin('settings.maintenance_desc')}</p>
                          </div>
                          <button onClick={handleToggleMaintenance} className={`px-4 py-2 rounded-lg font-bold text-white shadow-sm ${maintenanceEnabled ? 'bg-red-600' : 'bg-slate-400 hover:bg-slate-500'}`}>
@@ -683,262 +501,41 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
                    </div>
                )}
                {activeSettingsView === 'plans' && (
-          <div className="space-y-8">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.upgrades_title')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
-              <AdminMRRSummary />
-            </div>
+                  <div className="space-y-8">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.upgrades_title')}</h3>
+                      <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
+                      <AdminMRRSummary />
+                    </div>
 
-            {upgradeMsg.text && (
-              <div className={`p-4 rounded-xl text-sm font-medium ${upgradeMsg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
-                {upgradeMsg.text}
-              </div>
-            )}
-
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-w-xl">
-               <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('plans.select_placeholder')}</label>
-               <select 
-                 className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-white mb-4"
-                 value={selectedPlanBusinessId} 
-                 onChange={e => setSelectedPlanBusinessId(e.target.value)}
-                 disabled={creating}
-               >
-                 <option value="">{tAdmin('plans.select_placeholder')}</option>
-                 {businesses.map(b => (
-                   <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>
-                 ))}
-               </select>
-
-               <div className="flex gap-2">
-                 <button onClick={() => handleUpgrade('free')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 rounded-lg font-bold">{tAdmin('plans.set_free') || 'Set Free'}</button>
-                 <button onClick={() => handleUpgrade('pro')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_pro') || 'Set Pro'}</button>
-                 <button onClick={() => handleUpgrade('enterprise')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_enterprise') || 'Set Enterprise'}</button>
-               </div>
-            </div></div>
-          </div>
-        )}
-
-        {/* WORKSPACE: MERCHANTS */}
-        {activeTab === 'merchants' && (
-           <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-               <h2 className="text-xl font-bold text-slate-800">{tAdmin('workspaces.merchant_directory')}</h2>
-               <button onClick={() => { resetForm(); setIsCreateModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">
-                  + {tAdmin('workspaces.add_merchant')}
-               </button>
-            </div>
-            
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 w-full bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-                 <input type="text" placeholder="Search name or email..." className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-64 focus:ring-2 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                 <select className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" value={planFilter} onChange={e => setPlanFilter(e.target.value)}>
-                   <option value="all">All Plans</option>
-                   <option value="free">Free</option>
-                   <option value="starter">Starter</option>
-                   <option value="pro">Pro</option>
-                   <option value="enterprise">Enterprise</option>
-                 </select>
-                 
-               {selectedIds.length > 0 && (
-                <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg ml-auto">
-                   <span className="text-sm font-semibold text-blue-700">{selectedIds.length} selected</span>
-                   <select className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white" value={bulkAction} onChange={e => setBulkAction(e.target.value)}>
-                      <option value="">-- Bulk Action --</option>
-                      <option value="plan">Change Plan</option>
-                      <option value="credits">Inject Credits</option>
-                   </select>
-                   {bulkAction === 'plan' && (
-                      <select className="text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
-                         <option value="free">Free</option>
-                         <option value="pro">Pro</option>
-                         <option value="enterprise">Enterprise</option>
-                      </select>
-                   )}
-                   {bulkAction === 'credits' && (
-                      <input type="number" placeholder="+500" className="w-24 text-sm border border-slate-300 rounded-md px-2 py-1 bg-white" value={bulkCredits} onChange={e => setBulkCredits(Number(e.target.value))} />
-                   )}
-                   <button onClick={handleBulkAction} className="bg-blue-600 text-white text-sm px-3 py-1 rounded-md font-medium hover:bg-blue-700">Apply</button>
-                </div>
-               )}
-            </div>
-            
-            {/* Primary Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-               <table className="w-full text-start border-collapse text-sm">
-                 <thead>
-                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[11px] font-bold">
-                     <th className="py-3 px-4 text-start w-10"><input type="checkbox" onChange={toggleAll} checked={businesses.length > 0 && selectedIds.length === businesses.length} className="rounded" /></th>
-                     <th className="py-3 px-4 text-start">{tAdmin('table.name_and_plan')}</th>
-                     <th className="py-3 px-4 text-start">{tAdmin('table.owner_email')}</th>
-                     <th className="py-3 px-4 text-start">MRR</th>
-                     <th className="py-3 px-4 text-start">{tAdmin('table.credits_given')}</th>
-                     <th className="py-3 px-4 text-start">{tAdmin('table.targeting')}</th>
-                     <th className="py-3 px-4 text-center">Status</th>
-                     <th className="py-3 px-4 text-end">{tAdmin('table.options')}</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                   {businesses.map((b) => (
-                    <tr key={b.id} className="hover:bg-indigo-50/30 transition-colors group">
-                       <td className="py-4 px-4"><input type="checkbox" checked={selectedIds.includes(b.id)} onChange={() => toggleSelection(b.id)} className="rounded" /></td>
-                       <td className="py-4 px-4">
-                         <div className="font-bold text-slate-800">{b.name}</div>
-                         <div className="text-xs text-slate-500 uppercase font-medium mt-0.5">{b.plan_name || 'Free'}</div>
-                       </td>
-                       <td className="py-4 px-4 text-slate-600">{b.owner_email}</td>
-                       <td className="py-4 px-4 font-semibold text-slate-800">${b.profit_margin > 0 ? b.profit_margin : 0}</td>
-                       <td className="py-4 px-4 font-bold text-blue-600">{b.message_credits}</td>
-                       <td className="py-4 px-4 text-lg" title="Connection">{b.features?.whatsapp || b.features?.telegram ? '🟢' : '🔴'}</td>
-                       <td className="py-4 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider ${b.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                             {b.status.toUpperCase()}
-                          </span>
-                       </td>
-                       <td className="py-4 px-4 text-end">
-                         <div className="flex justify-end gap-2 rtl:flex-row-reverse opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { handleImpersonate(b.id); }} className="text-slate-500 hover:text-green-600 transition border bg-white px-2 py-1 rounded shadow-sm text-xs" title="Login as Merchant">Login</button>
-                            <button onClick={() => { handleEdit(b.id); }} className="text-slate-500 hover:text-blue-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Edit">Edit</button>
-                            <button onClick={() => { handleDeleteBusiness(b.id); }} className="text-slate-500 hover:text-red-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Delete">🗑️</button>
-                         </div>
-                       </td>
-                    </tr>
-                   ))}
-                 </tbody>
-               </table>
-               {businesses.length === 0 && <div className="text-center py-10 text-slate-500">{tAdmin('table.no_businesses')}</div>}
-            </div>
-          </div>
-        )}
-
-        {/* WORKSPACE: SETTINGS & BILLING */}
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800">{tAdmin('workspaces.system_settings')}</h2>
-            <div className="flex gap-2 bg-white p-1 rounded-lg shadow-sm border border-slate-200 w-max">
-               <button onClick={()=>setActiveSettingsView('general')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'general' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.general')}</button>
-               <button onClick={()=>setActiveSettingsView('plans')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'plans' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.subscription_plans')}</button>
-               <button onClick={()=>setActiveSettingsView('logs')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'logs' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.error_logs')}</button>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
-               {activeSettingsView === 'general' && (
-                   <div className="space-y-6">
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Platform Name</label>
-                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.platform_name || ''} onChange={(e: any) => setSystemSettings({...systemSettings, platform_name: e.target.value})} />
-                           </div>
-                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Support Phone</label>
-                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.support_phone || ''} onChange={(e: any) => setSystemSettings({...systemSettings, support_phone: e.target.value})} placeholder="+1234567890" />
-                           </div>
-                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">AI Provider</label>
-                              <select className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={systemSettings?.ai_provider || ''} onChange={(e: any) => setSystemSettings({...systemSettings, ai_provider: e.target.value})}>
-                                <option value="openai">OpenAI (GPT-4)</option>
-                                <option value="gemini">Google Gemini 1.5</option>
-                              </select>
-                           </div>
+                    {upgradeMsg.text && (
+                      <div className={`p-4 rounded-xl text-sm font-medium ${upgradeMsg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
+                        {upgradeMsg.text}
                       </div>
-                      <div className="flex items-center justify-between border-b pb-4 mb-4">
-                         <div>
-<h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
-                            <p className="text-sm text-slate-500">{tAdmin('settings.maintenance_desc')}</p>
-                         </div>
-                         <button onClick={handleToggleMaintenance} className={`px-4 py-2 rounded-lg font-bold text-white shadow-sm ${maintenanceEnabled ? 'bg-red-600' : 'bg-slate-400 hover:bg-slate-500'}`}>
-                            {maintenanceEnabled ? tAdmin('settings.maintenance_is_on') : tAdmin('settings.turn_on_maintenance')}
-                         </button>
-                      </div>
-                      <div className="flex justify-end pt-4"><button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold" onClick={handleSaveSystemSettings}>{savingSettings ? tAdmin('settings.saving') : tAdmin('settings.save_settings')}</button></div>
-                   </div>
+                    )}
+
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-w-xl">
+                       <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('plans.select_placeholder')}</label>
+                       <select 
+                         className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-white mb-4"
+                         value={selectedPlanBusinessId} 
+                         onChange={e => setSelectedPlanBusinessId(e.target.value)}
+                         disabled={creating}
+                       >
+                         <option value="">{tAdmin('plans.select_placeholder')}</option>
+                         {businesses.map(b => (
+                           <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>
+                         ))}
+                       </select>
+
+                       <div className="flex gap-2">
+                         <button onClick={() => handleUpgrade('free')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 rounded-lg font-bold">{tAdmin('plans.set_free') || 'Set Free'}</button>
+                         <button onClick={() => handleUpgrade('pro')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_pro') || 'Set Pro'}</button>
+                         <button onClick={() => handleUpgrade('enterprise')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_enterprise') || 'Set Enterprise'}</button>
+                       </div>
+                    </div>
+                  </div>
                )}
-               {activeSettingsView === 'plans' && (
-          <div className="space-y-8">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.upgrades_title')}</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
-              <AdminMRRSummary />
-            </div>
-
-            {upgradeMsg.text && (
-              <div className={`p-4 rounded-xl text-sm font-medium ${upgradeMsg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
-                {upgradeMsg.text}
-              </div>
-            )}
-
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-               <label className="block text-sm font-medium text-slate-700 mb-3">{tAdmin('plans.select_business_first') || 'Select Business'}</label>
-               <select 
-                 className="w-full md:w-1/2 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-white"
-                 value={selectedPlanBusinessId} 
-                 onChange={e => setSelectedPlanBusinessId(e.target.value)}
-                 disabled={creating}
-               >
-                 <option value="">{tAdmin('plans.select_placeholder') || '-- Choose Business --'}</option>
-                 {businesses.map(b => (
-                   <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>
-                 ))}
-               </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               {/* Free Plan */}
-               <div className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                  <h4 className="text-2xl font-bold text-slate-800 mb-2">{tAdmin('plans.free') || 'Free'}</h4>
-                  <p className="text-4xl font-extrabold text-blue-600 mb-6">$0<span className="text-lg text-slate-400 font-normal">/mo</span></p>
-                  <ul className="space-y-3 mb-8 text-slate-600 text-sm">
-                     <li>✅ 10,000 Tokens</li>
-                     <li>✅ Community Support</li>
-                     <li>✅ Basic AI Sales</li>
-                  </ul>
-                  <button 
-                    onClick={() => handleUpgrade('free')} disabled={creating || !selectedPlanBusinessId}
-                    className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 disabled:opacity-50"
-                  >
-                     {tAdmin('plans.set_free')}
-                  </button>
-               </div>
-
-               {/* Pro Plan */}
-               <div className="bg-gradient-to-b from-blue-50 to-white border border-blue-200 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] relative transform md:-translate-y-2">
-                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>
-                  <h4 className="text-2xl font-bold text-blue-800 mb-2">{tAdmin('plans.pro') || 'Pro'}</h4>
-                  <p className="text-4xl font-extrabold text-blue-600 mb-6">$49<span className="text-lg text-slate-400 font-normal">/mo</span></p>
-                  <ul className="space-y-3 mb-8 text-slate-700 text-sm font-medium">
-                     <li>🔥 100,000 Tokens</li>
-                     <li>🔥 Priority Support</li>
-                     <li>🔥 Multi-channel Integration</li>
-                  </ul>
-                  <button 
-                    onClick={() => handleUpgrade('pro')} disabled={creating || !selectedPlanBusinessId}
-                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-md disabled:opacity-50 transition-colors"
-                  >
-                     {tAdmin('plans.set_pro')}
-                  </button>
-               </div>
-
-               {/* Enterprise Plan */}
-               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl text-white">
-                  <h4 className="text-2xl font-bold text-white mb-2">{tAdmin('plans.enterprise') || 'Enterprise'}</h4>
-                  <p className="text-4xl font-extrabold text-blue-400 mb-6">$199<span className="text-lg text-slate-400 font-normal">/mo</span></p>
-                  <ul className="space-y-3 mb-8 text-slate-300 text-sm">
-                     <li>🚀 Unlimited Tokens</li>
-                     <li>🚀 Dedicated Account Manager</li>
-                     <li>🚀 White-glove Onboarding</li>
-                  </ul>
-                  <button 
-                    onClick={() => handleUpgrade('enterprise')} disabled={creating || !selectedPlanBusinessId}
-                    className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 border border-slate-700 disabled:opacity-50 transition-colors"
-                  >
-                     {tAdmin('plans.set_enterprise')}
-                  </button>
-               </div>
-            </div>
-          </div>
-        )}
-               
                {activeSettingsView === 'logs' && (
                   <div className="space-y-4">
                     <input type="text" placeholder={tAdmin('logs.filter_placeholder')} className="border border-slate-300 rounded-lg p-2 w-full max-w-md" value={logSearch} onChange={e => setLogSearch(e.target.value)} />
@@ -964,7 +561,8 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
         </div>
       </main>
       {/* Live Activity Feed Sidebar */}
-      {showLiveActivity && (<aside className="w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col p-4 shadow-sm h-screen sticky top-0 overflow-y-auto hidden xl:block">
+      {showLiveActivity && (
+         <aside className="w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col p-4 shadow-sm h-screen sticky top-0 overflow-y-auto hidden xl:block">
            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2 mt-4">
              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                <span className="relative flex h-3 w-3">
@@ -973,7 +571,10 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
                </span>
                Live Activity
              </h3>
-             <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span> <button onClick={() => setShowLiveActivity(false)} className="text-xs ml-2 text-slate-500 hover:text-slate-800">✖</button>
+             <div>
+               <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span>
+               <button onClick={() => toggleActivity(false)} className="text-xs ml-2 px-2 py-1 bg-slate-200 text-slate-600 rounded hover:bg-slate-300 transition">✖</button>
+             </div>
            </div>
            
            <div className="space-y-4">
@@ -998,9 +599,19 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
                ))
              )}
            </div>
-      </aside>)}
-      {!showLiveActivity && <button onClick={() => setShowLiveActivity(true)} className="fixed bottom-6 right-6 bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 z-50">📡 Activity</button>}
+         </aside>
+      )}
 
+      {/* Toggle Activity Button */}
+      {!showLiveActivity && (
+         <button onClick={() => toggleActivity(true)} className="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-full shadow-2xl hover:bg-slate-700 hover:scale-105 transition-all z-50 font-bold flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Activity Feed
+         </button>
+      )}
 
       {/* CREATE MODAL */}
       {isCreateModalOpen && (
@@ -1008,7 +619,7 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
               <div className="flex justify-between items-center p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
                  <h2 className="text-xl font-bold text-slate-800">{editingBusinessId ? tAdmin('create.update_merchant') : tAdmin('create.add_new_merchant')}</h2>
-                 <button onClick={() => setIsCreateModalOpen(false)} className="bg-slate-100 text-slate-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200">X</button>
+                 <button onClick={() => setIsCreateModalOpen(false)} className="bg-slate-100 text-slate-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 transition">✕</button>
               </div>
               <div className="p-6">
                  {/* Raw form goes here */}
@@ -1032,21 +643,19 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
                           <option value="medical">Medical / Clinic</option>
                         </select>
                       </div>
-                      {!editingBusinessId && (
-                        <>
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('create.owner_email')}</label>
-                            <input required type="email" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} disabled={creating} />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('create.owner_password')}</label>
-                            <input required={!editingBusinessId} placeholder={editingBusinessId ? "Leave blank to keep current" : "Password"} type="password" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none" value={ownerPassword} onChange={e => setOwnerPassword(e.target.value)} disabled={creating} />
-                          </div>
-                        </>
-                      )}
+                      
+                      {/* Only disable email if editing. Let password be updated if editing. */}
+                      <div>
+                         <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('create.owner_email')}</label>
+                         <input required type="email" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none disabled:bg-slate-100" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} disabled={creating || !!editingBusinessId} />
+                      </div>
+                      <div>
+                         <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('create.owner_password')}</label>
+                         <input required={!editingBusinessId} minLength={4} placeholder={editingBusinessId ? "**** (Leave blank to keep password)" : ""} type="password" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none" value={ownerPassword} onChange={e => setOwnerPassword(e.target.value)} disabled={creating} />
+                      </div>
                     </div>
                     <div className="pt-6 border-t border-slate-100 flex justify-end">
-                       <button type="submit" disabled={creating} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 disabled:opacity-50">
+                       <button type="submit" disabled={creating} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-md hover:bg-indigo-700 disabled:opacity-50 transition">
                           {creating ? tAdmin('settings.saving') : (editingBusinessId ? tAdmin('create.update_merchant') : tAdmin('create.create_merchant'))}
                        </button>
                     </div>
@@ -1058,15 +667,3 @@ const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'
     </div>
   );
 }
-  const handleDeleteBusiness = async (id: string) => {
-    if (!window.confirm("Are you sure you want to completely delete this business? All data will be lost.")) return;
-    try {
-      await apiClient.delete(`/api/admin/businesses/${id}`);
-      setBusinesses(businesses.filter(b => b.id !== id));
-      // Option to show success
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete business");
-    }
-  };
-
