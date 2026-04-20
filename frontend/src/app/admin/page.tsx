@@ -59,7 +59,8 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<any[]>([]);
   const [systemHealth, setSystemHealth] = useState<any>(null);
   const [logSearch, setLogSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'>('overview');
+    const [showLiveActivity, setShowLiveActivity] = useState(true);
+const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'settings'>('overview');
   const [activeSettingsView, setActiveSettingsView] = useState<'general' | 'plans' | 'logs'>('general');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -513,7 +514,8 @@ export default function AdminDashboard() {
               ⚙️ {tAdmin('tabs.settings')}
            </button>
         </nav>
-      </aside>
+      </aside>)}
+      {!showLiveActivity && <button onClick={() => setShowLiveActivity(true)} className="fixed bottom-6 right-6 bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 z-50">📡 Activity</button>}
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 w-full max-w-7xl mx-auto p-8 overflow-y-auto">
@@ -625,6 +627,7 @@ export default function AdminDashboard() {
                          <div className="flex justify-end gap-2 rtl:flex-row-reverse opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => { handleImpersonate(b.id); }} className="text-slate-500 hover:text-green-600 transition border bg-white px-2 py-1 rounded shadow-sm text-xs" title="Login as Merchant">Login</button>
                             <button onClick={() => { handleEdit(b.id); }} className="text-slate-500 hover:text-blue-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Edit">Edit</button>
+                            <button onClick={() => { handleDeleteBusiness(b.id); }} className="text-slate-500 hover:text-red-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Delete">🗑️</button>
                          </div>
                        </td>
                     </tr>
@@ -649,9 +652,199 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
                {activeSettingsView === 'general' && (
                    <div className="space-y-6">
-                      <div className="flex items-center justify-between border-b pb-4">
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Platform Name</label>
+                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.platform_name || ''} onChange={(e: any) => setSystemSettings({...systemSettings, platform_name: e.target.value})} />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Support Phone</label>
+                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.support_phone || ''} onChange={(e: any) => setSystemSettings({...systemSettings, support_phone: e.target.value})} placeholder="+1234567890" />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">AI Provider</label>
+                              <select className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={systemSettings?.ai_provider || ''} onChange={(e: any) => setSystemSettings({...systemSettings, ai_provider: e.target.value})}>
+                                <option value="openai">OpenAI (GPT-4)</option>
+                                <option value="gemini">Google Gemini 1.5</option>
+                              </select>
+                           </div>
+                      </div>
+                      <div className="flex items-center justify-between border-b pb-4 mb-4">
                          <div>
-                            <h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
+<h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
+                            <p className="text-sm text-slate-500">{tAdmin('settings.maintenance_desc')}</p>
+                         </div>
+                         <button onClick={handleToggleMaintenance} className={`px-4 py-2 rounded-lg font-bold text-white shadow-sm ${maintenanceEnabled ? 'bg-red-600' : 'bg-slate-400 hover:bg-slate-500'}`}>
+                            {maintenanceEnabled ? tAdmin('settings.maintenance_is_on') : tAdmin('settings.turn_on_maintenance')}
+                         </button>
+                      </div>
+                      <div className="flex justify-end pt-4"><button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold" onClick={handleSaveSystemSettings}>{savingSettings ? tAdmin('settings.saving') : tAdmin('settings.save_settings')}</button></div>
+                   </div>
+               )}
+               {activeSettingsView === 'plans' && (
+          <div className="space-y-8">
+            <div className="mb-4">
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.upgrades_title')}</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
+              <AdminMRRSummary />
+            </div>
+
+            {upgradeMsg.text && (
+              <div className={`p-4 rounded-xl text-sm font-medium ${upgradeMsg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
+                {upgradeMsg.text}
+              </div>
+            )}
+
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-w-xl">
+               <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('plans.select_placeholder')}</label>
+               <select 
+                 className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-white mb-4"
+                 value={selectedPlanBusinessId} 
+                 onChange={e => setSelectedPlanBusinessId(e.target.value)}
+                 disabled={creating}
+               >
+                 <option value="">{tAdmin('plans.select_placeholder')}</option>
+                 {businesses.map(b => (
+                   <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>
+                 ))}
+               </select>
+
+               <div className="flex gap-2">
+                 <button onClick={() => handleUpgrade('free')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 rounded-lg font-bold">{tAdmin('plans.set_free') || 'Set Free'}</button>
+                 <button onClick={() => handleUpgrade('pro')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_pro') || 'Set Pro'}</button>
+                 <button onClick={() => handleUpgrade('enterprise')} disabled={creating || !selectedPlanBusinessId} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_enterprise') || 'Set Enterprise'}</button>
+               </div>
+            </div></div>
+          </div>
+        )}
+
+        {/* WORKSPACE: MERCHANTS */}
+        {activeTab === 'merchants' && (
+           <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+               <h2 className="text-xl font-bold text-slate-800">{tAdmin('workspaces.merchant_directory')}</h2>
+               <button onClick={() => { resetForm(); setIsCreateModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">
+                  + {tAdmin('workspaces.add_merchant')}
+               </button>
+            </div>
+            
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3 w-full bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                 <input type="text" placeholder="Search name or email..." className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-64 focus:ring-2 outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                 <select className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white" value={planFilter} onChange={e => setPlanFilter(e.target.value)}>
+                   <option value="all">All Plans</option>
+                   <option value="free">Free</option>
+                   <option value="starter">Starter</option>
+                   <option value="pro">Pro</option>
+                   <option value="enterprise">Enterprise</option>
+                 </select>
+                 
+               {selectedIds.length > 0 && (
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg ml-auto">
+                   <span className="text-sm font-semibold text-blue-700">{selectedIds.length} selected</span>
+                   <select className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white" value={bulkAction} onChange={e => setBulkAction(e.target.value)}>
+                      <option value="">-- Bulk Action --</option>
+                      <option value="plan">Change Plan</option>
+                      <option value="credits">Inject Credits</option>
+                   </select>
+                   {bulkAction === 'plan' && (
+                      <select className="text-sm border border-slate-300 rounded-md px-2 py-1" value={bulkPlan} onChange={e => setBulkPlan(e.target.value)}>
+                         <option value="free">Free</option>
+                         <option value="pro">Pro</option>
+                         <option value="enterprise">Enterprise</option>
+                      </select>
+                   )}
+                   {bulkAction === 'credits' && (
+                      <input type="number" placeholder="+500" className="w-24 text-sm border border-slate-300 rounded-md px-2 py-1 bg-white" value={bulkCredits} onChange={e => setBulkCredits(Number(e.target.value))} />
+                   )}
+                   <button onClick={handleBulkAction} className="bg-blue-600 text-white text-sm px-3 py-1 rounded-md font-medium hover:bg-blue-700">Apply</button>
+                </div>
+               )}
+            </div>
+            
+            {/* Primary Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+               <table className="w-full text-start border-collapse text-sm">
+                 <thead>
+                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[11px] font-bold">
+                     <th className="py-3 px-4 text-start w-10"><input type="checkbox" onChange={toggleAll} checked={businesses.length > 0 && selectedIds.length === businesses.length} className="rounded" /></th>
+                     <th className="py-3 px-4 text-start">{tAdmin('table.name_and_plan')}</th>
+                     <th className="py-3 px-4 text-start">{tAdmin('table.owner_email')}</th>
+                     <th className="py-3 px-4 text-start">MRR</th>
+                     <th className="py-3 px-4 text-start">{tAdmin('table.credits_given')}</th>
+                     <th className="py-3 px-4 text-start">{tAdmin('table.targeting')}</th>
+                     <th className="py-3 px-4 text-center">Status</th>
+                     <th className="py-3 px-4 text-end">{tAdmin('table.options')}</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {businesses.map((b) => (
+                    <tr key={b.id} className="hover:bg-indigo-50/30 transition-colors group">
+                       <td className="py-4 px-4"><input type="checkbox" checked={selectedIds.includes(b.id)} onChange={() => toggleSelection(b.id)} className="rounded" /></td>
+                       <td className="py-4 px-4">
+                         <div className="font-bold text-slate-800">{b.name}</div>
+                         <div className="text-xs text-slate-500 uppercase font-medium mt-0.5">{b.plan_name || 'Free'}</div>
+                       </td>
+                       <td className="py-4 px-4 text-slate-600">{b.owner_email}</td>
+                       <td className="py-4 px-4 font-semibold text-slate-800">${b.profit_margin > 0 ? b.profit_margin : 0}</td>
+                       <td className="py-4 px-4 font-bold text-blue-600">{b.message_credits}</td>
+                       <td className="py-4 px-4 text-lg" title="Connection">{b.features?.whatsapp || b.features?.telegram ? '🟢' : '🔴'}</td>
+                       <td className="py-4 px-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider ${b.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                             {b.status.toUpperCase()}
+                          </span>
+                       </td>
+                       <td className="py-4 px-4 text-end">
+                         <div className="flex justify-end gap-2 rtl:flex-row-reverse opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { handleImpersonate(b.id); }} className="text-slate-500 hover:text-green-600 transition border bg-white px-2 py-1 rounded shadow-sm text-xs" title="Login as Merchant">Login</button>
+                            <button onClick={() => { handleEdit(b.id); }} className="text-slate-500 hover:text-blue-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Edit">Edit</button>
+                            <button onClick={() => { handleDeleteBusiness(b.id); }} className="text-slate-500 hover:text-red-600 border bg-white transition px-2 py-1 rounded shadow-sm text-xs" title="Delete">🗑️</button>
+                         </div>
+                       </td>
+                    </tr>
+                   ))}
+                 </tbody>
+               </table>
+               {businesses.length === 0 && <div className="text-center py-10 text-slate-500">{tAdmin('table.no_businesses')}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* WORKSPACE: SETTINGS & BILLING */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-slate-800">{tAdmin('workspaces.system_settings')}</h2>
+            <div className="flex gap-2 bg-white p-1 rounded-lg shadow-sm border border-slate-200 w-max">
+               <button onClick={()=>setActiveSettingsView('general')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'general' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.general')}</button>
+               <button onClick={()=>setActiveSettingsView('plans')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'plans' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.subscription_plans')}</button>
+               <button onClick={()=>setActiveSettingsView('logs')} className={`px-6 py-2 rounded-md font-medium text-sm transition ${activeSettingsView === 'logs' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{tAdmin('settings_nav.error_logs')}</button>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
+               {activeSettingsView === 'general' && (
+                   <div className="space-y-6">
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Platform Name</label>
+                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.platform_name || ''} onChange={(e: any) => setSystemSettings({...systemSettings, platform_name: e.target.value})} />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Support Phone</label>
+                              <input className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none" value={systemSettings?.support_phone || ''} onChange={(e: any) => setSystemSettings({...systemSettings, support_phone: e.target.value})} placeholder="+1234567890" />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">AI Provider</label>
+                              <select className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={systemSettings?.ai_provider || ''} onChange={(e: any) => setSystemSettings({...systemSettings, ai_provider: e.target.value})}>
+                                <option value="openai">OpenAI (GPT-4)</option>
+                                <option value="gemini">Google Gemini 1.5</option>
+                              </select>
+                           </div>
+                      </div>
+                      <div className="flex items-center justify-between border-b pb-4 mb-4">
+                         <div>
+<h3 className="font-bold text-lg">{tAdmin('settings.maintenance_mode')}</h3>
                             <p className="text-sm text-slate-500">{tAdmin('settings.maintenance_desc')}</p>
                          </div>
                          <button onClick={handleToggleMaintenance} className={`px-4 py-2 rounded-lg font-bold text-white shadow-sm ${maintenanceEnabled ? 'bg-red-600' : 'bg-slate-400 hover:bg-slate-500'}`}>
@@ -755,7 +948,7 @@ export default function AdminDashboard() {
                              {logs.filter(l => (l.message||'').toLowerCase().includes(logSearch.toLowerCase())).map((l, i) => (
                                 <tr key={i} className="border-b border-slate-800/50 hover:bg-slate-800">
                                   <td className="p-3 w-32 font-mono text-slate-500">{new Date(l.timestamp).toLocaleString()}</td>
-                                  <td className={`p-3 font-bold ${l.level==='error'?'text-red-400':l.level==='warning'?'text-yellow-400':'text-blue-400'}`}>{l.level.toUpperCase()}</td>
+                                  <td className={`p-3 font-bold ${l.error_type==='error'?'text-red-400':l.error_type==='warning'?'text-yellow-400':'text-blue-400'}`}>{(l.error_type || 'error').toUpperCase()}</td>
                                   <td className="p-3 break-all">{l.message}</td>
                                 </tr>
                              ))}
@@ -771,7 +964,7 @@ export default function AdminDashboard() {
         </div>
       </main>
       {/* Live Activity Feed Sidebar */}
-      <aside className="w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col p-4 shadow-sm h-screen sticky top-0 overflow-y-auto hidden xl:block">
+      {showLiveActivity && (<aside className="w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col p-4 shadow-sm h-screen sticky top-0 overflow-y-auto hidden xl:block">
            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2 mt-4">
              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                <span className="relative flex h-3 w-3">
@@ -780,7 +973,7 @@ export default function AdminDashboard() {
                </span>
                Live Activity
              </h3>
-             <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span>
+             <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span> <button onClick={() => setShowLiveActivity(false)} className="text-xs ml-2 text-slate-500 hover:text-slate-800">✖</button>
            </div>
            
            <div className="space-y-4">
@@ -805,7 +998,8 @@ export default function AdminDashboard() {
                ))
              )}
            </div>
-      </aside>
+      </aside>)}
+      {!showLiveActivity && <button onClick={() => setShowLiveActivity(true)} className="fixed bottom-6 right-6 bg-slate-800 text-white p-3 rounded-full shadow-lg hover:bg-slate-700 z-50">📡 Activity</button>}
 
 
       {/* CREATE MODAL */}
@@ -846,7 +1040,7 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">{tAdmin('create.owner_password')}</label>
-                            <input required type="password" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none" value={ownerPassword} onChange={e => setOwnerPassword(e.target.value)} disabled={creating} />
+                            <input required={!editingBusinessId} placeholder={editingBusinessId ? "Leave blank to keep current" : "Password"} type="password" className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 outline-none" value={ownerPassword} onChange={e => setOwnerPassword(e.target.value)} disabled={creating} />
                           </div>
                         </>
                       )}
@@ -864,3 +1058,15 @@ export default function AdminDashboard() {
     </div>
   );
 }
+  const handleDeleteBusiness = async (id: string) => {
+    if (!window.confirm("Are you sure you want to completely delete this business? All data will be lost.")) return;
+    try {
+      await apiClient.delete(`/api/admin/businesses/${id}`);
+      setBusinesses(businesses.filter(b => b.id !== id));
+      // Option to show success
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete business");
+    }
+  };
+

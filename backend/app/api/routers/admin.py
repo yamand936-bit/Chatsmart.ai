@@ -31,6 +31,7 @@ class UpdateBusinessRequest(BaseModel):
     name: Optional[str] = None
     business_type: Optional[str] = None
     status: Optional[str] = None
+    owner_password: Optional[str] = None
 
 class UpdateBusinessStatusRequest(BaseModel):
     status: str
@@ -358,8 +359,25 @@ async def update_business(business_id: uuid.UUID, data: UpdateBusinessRequest, d
     if data.status is not None:
         b.status = data.status
         
+    if data.owner_password:
+        user_result = await db.execute(select(User).where(User.business_id == business_id).where(User.role == "merchant"))
+        merchant_user = user_result.scalars().first()
+        if merchant_user:
+            merchant_user.hashed_password = get_password_hash(data.owner_password)
+        
     await db.commit()
     return {"status": "ok", "message": "Business updated successfully"}
+
+@router.delete("/businesses/{business_id}")
+async def delete_business(business_id: uuid.UUID, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
+    result = await db.execute(select(Business).where(Business.id == business_id))
+    b = result.scalar_one_or_none()
+    if not b:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    await db.delete(b)
+    await db.commit()
+    return {"status": "ok", "message": "Business deleted successfully"}
 
 @router.patch("/businesses/{business_id}/status")
 async def update_business_status(business_id: uuid.UUID, data: UpdateBusinessStatusRequest, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
