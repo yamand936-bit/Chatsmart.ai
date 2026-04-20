@@ -12,6 +12,16 @@ const AdminCharts = dynamic(() => import('@/components/AdminCharts'), {
 
 
 
+const AdminHealthTab = dynamic(() => import('@/components/AdminHealthTab'), {
+  ssr: false,
+  loading: () => <Skeleton className="h-60" />,
+});
+
+const AdminMRRSummary = dynamic(() => import('@/components/AdminMRRSummary'), {
+  ssr: false,
+  loading: () => <div className="p-10 text-center"><Skeleton className="h-60" /></div>,
+});
+
 const Sparkline = ({ data }: { data: number[] }) => {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data, 1);
@@ -514,36 +524,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-slate-800">{tAdmin('workspaces.system_overview')}</h2>
             
-            {/* Health Bar Wrapper */}
-            {systemHealth && (
-                <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                   <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">CPU</span>
-                      <span className={`text-lg font-bold ${systemHealth.cpu_usage > 80 ? 'text-red-500' : 'text-green-600'}`}>{systemHealth.cpu_usage}%</span>
-                   </div>
-                   <div className="w-px bg-slate-200 mx-2"></div>
-                   <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Memory</span>
-                      <span className={`text-lg font-bold ${systemHealth.memory_usage > 80 ? 'text-red-500' : 'text-blue-600'}`}>{systemHealth.memory_usage}%</span>
-                   </div>
-                    <div className="w-px bg-slate-200 mx-2"></div>
-                   <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Disk</span>
-                      <span className={`text-lg font-bold ${systemHealth.disk_usage > 80 ? 'text-red-500' : 'text-slate-600'}`}>{systemHealth.disk_usage}%</span>
-                   </div>
-                    <div className="w-px bg-slate-200 mx-2"></div>
-                   <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Redis</span>
-                      <span className={`text-lg font-bold ${systemHealth.redis_status === 'online' ? 'text-green-600' : 'text-red-600'}`}>{systemHealth.redis_status.toUpperCase()}</span>
-                   </div>
-                    <div className="w-px bg-slate-200 mx-2"></div>
-                   <div className="flex flex-col">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Database</span>
-                      <span className={`text-lg font-bold ${systemHealth.db_status === 'online' ? 'text-green-600' : 'text-red-600'}`}>{systemHealth.db_status.toUpperCase()}</span>
-                   </div>
-                </div>
-            )}
-            
+            <div className="mb-6"><AdminHealthTab /></div>
             {/* Top Stat Cards */}
             {metrics && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -681,26 +662,90 @@ export default function AdminDashboard() {
                    </div>
                )}
                {activeSettingsView === 'plans' && (
-                   <div>
-                      <h3 className="font-bold text-xl mb-4">{tAdmin('plans.upgrades_title')}</h3>
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 max-w-lg space-y-4">
-                        <select className="w-full border p-2 rounded-lg border-slate-300 bg-white" value={selectedPlanBusinessId} onChange={e => setSelectedPlanBusinessId(e.target.value)}>
-                           <option value="">{tAdmin('plans.select_placeholder')}</option>
-                           {businesses.map(b => <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>)}
-                        </select>
-                        <div className="flex gap-2">
-                           <button onClick={() => handleUpgrade('free')} disabled={creating} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2 rounded-lg font-bold">{tAdmin('plans.set_free')}</button>
-                           <button onClick={() => handleUpgrade('pro')} disabled={creating} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_pro')}</button>
-                           <button onClick={() => handleUpgrade('enterprise')} disabled={creating} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold">{tAdmin('plans.set_enterprise')}</button>
-                        </div>
-                        {upgradeMsg.text && (
-                          <div className={`p-3 rounded-lg text-sm font-semibold mt-2 ${upgradeMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                             {upgradeMsg.text}
-                          </div>
-                        )}
-                      </div>
-                   </div>
-               )}
+          <div className="space-y-8">
+            <div className="mb-4">
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{tAdmin('plans.upgrades_title')}</h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">{tAdmin('plans.subtitle') || 'Select a business and upgrade to a premium tier.'}</p>
+              <AdminMRRSummary />
+            </div>
+
+            {upgradeMsg.text && (
+              <div className={`p-4 rounded-xl text-sm font-medium ${upgradeMsg.type === 'error' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
+                {upgradeMsg.text}
+              </div>
+            )}
+
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+               <label className="block text-sm font-medium text-slate-700 mb-3">{tAdmin('plans.select_business_first') || 'Select Business'}</label>
+               <select 
+                 className="w-full md:w-1/2 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 bg-white"
+                 value={selectedPlanBusinessId} 
+                 onChange={e => setSelectedPlanBusinessId(e.target.value)}
+                 disabled={creating}
+               >
+                 <option value="">{tAdmin('plans.select_placeholder') || '-- Choose Business --'}</option>
+                 {businesses.map(b => (
+                   <option key={b.id} value={b.id}>{b.name} ({b.owner_email})</option>
+                 ))}
+               </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               {/* Free Plan */}
+               <div className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <h4 className="text-2xl font-bold text-slate-800 mb-2">{tAdmin('plans.free') || 'Free'}</h4>
+                  <p className="text-4xl font-extrabold text-blue-600 mb-6">$0<span className="text-lg text-slate-400 font-normal">/mo</span></p>
+                  <ul className="space-y-3 mb-8 text-slate-600 text-sm">
+                     <li>✅ 10,000 Tokens</li>
+                     <li>✅ Community Support</li>
+                     <li>✅ Basic AI Sales</li>
+                  </ul>
+                  <button 
+                    onClick={() => handleUpgrade('free')} disabled={creating || !selectedPlanBusinessId}
+                    className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 disabled:opacity-50"
+                  >
+                     {tAdmin('plans.set_free')}
+                  </button>
+               </div>
+
+               {/* Pro Plan */}
+               <div className="bg-gradient-to-b from-blue-50 to-white border border-blue-200 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.15)] relative transform md:-translate-y-2">
+                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>
+                  <h4 className="text-2xl font-bold text-blue-800 mb-2">{tAdmin('plans.pro') || 'Pro'}</h4>
+                  <p className="text-4xl font-extrabold text-blue-600 mb-6">$49<span className="text-lg text-slate-400 font-normal">/mo</span></p>
+                  <ul className="space-y-3 mb-8 text-slate-700 text-sm font-medium">
+                     <li>🔥 100,000 Tokens</li>
+                     <li>🔥 Priority Support</li>
+                     <li>🔥 Multi-channel Integration</li>
+                  </ul>
+                  <button 
+                    onClick={() => handleUpgrade('pro')} disabled={creating || !selectedPlanBusinessId}
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-md disabled:opacity-50 transition-colors"
+                  >
+                     {tAdmin('plans.set_pro')}
+                  </button>
+               </div>
+
+               {/* Enterprise Plan */}
+               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl text-white">
+                  <h4 className="text-2xl font-bold text-white mb-2">{tAdmin('plans.enterprise') || 'Enterprise'}</h4>
+                  <p className="text-4xl font-extrabold text-blue-400 mb-6">$199<span className="text-lg text-slate-400 font-normal">/mo</span></p>
+                  <ul className="space-y-3 mb-8 text-slate-300 text-sm">
+                     <li>🚀 Unlimited Tokens</li>
+                     <li>🚀 Dedicated Account Manager</li>
+                     <li>🚀 White-glove Onboarding</li>
+                  </ul>
+                  <button 
+                    onClick={() => handleUpgrade('enterprise')} disabled={creating || !selectedPlanBusinessId}
+                    className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 border border-slate-700 disabled:opacity-50 transition-colors"
+                  >
+                     {tAdmin('plans.set_enterprise')}
+                  </button>
+               </div>
+            </div>
+          </div>
+        )}
+               
                {activeSettingsView === 'logs' && (
                   <div className="space-y-4">
                     <input type="text" placeholder={tAdmin('logs.filter_placeholder')} className="border border-slate-300 rounded-lg p-2 w-full max-w-md" value={logSearch} onChange={e => setLogSearch(e.target.value)} />
@@ -725,6 +770,43 @@ export default function AdminDashboard() {
         )}
         </div>
       </main>
+      {/* Live Activity Feed Sidebar */}
+      <aside className="w-80 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col p-4 shadow-sm h-screen sticky top-0 overflow-y-auto hidden xl:block">
+           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2 mt-4">
+             <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+               <span className="relative flex h-3 w-3">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+               </span>
+               Live Activity
+             </h3>
+             <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded">Auto-sync</span>
+           </div>
+           
+           <div className="space-y-4">
+             {logs.length === 0 ? (
+               <div className="text-center text-sm text-slate-500 py-4">No recent activity.</div>
+             ) : (
+               logs.slice(0, 15).map((log, idx) => (
+                 <div key={idx} className="pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                   <div className="flex items-start gap-2">
+                     <span className="text-[16px] leading-none mt-0.5">{log.error_type === 'info' ? 'ℹ️' : log.error_type === 'warning' ? '⚠️' : '🔴'}</span>
+                     <div>
+                       <p className="text-sm font-medium text-slate-700 leading-snug">
+                         <span className="font-bold">{log.business_name || 'System'}</span> 
+                         <span className="text-slate-500 font-normal ml-1 line-clamp-2">{log.message}</span>
+                       </p>
+                       <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-mono">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+               ))
+             )}
+           </div>
+      </aside>
+
 
       {/* CREATE MODAL */}
       {isCreateModalOpen && (
