@@ -55,6 +55,8 @@ async def get_settings(db: AsyncSession = Depends(get_db), admin: dict = Depends
 @router.post("/settings")
 async def update_settings(payload: dict, db: AsyncSession = Depends(get_db), admin: dict = Depends(get_current_admin)):
     for key, value in payload.items():
+        if key in ["maintenance_mode", "status", "config"]:
+            continue
         if key not in ALLOWED_KEYS:
             raise HTTPException(400, f"Invalid key: {key}")
         if key in INTEGER_KEYS:
