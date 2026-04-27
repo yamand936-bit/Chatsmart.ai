@@ -690,9 +690,17 @@ async def create_subscription_checkout(business_id: uuid.UUID, data: SubscribeRe
         
     business.plan_name = data.plan
     business.token_limit = token_limit
+    
+    # Update current message credits to match the new limit, assuming fresh start or rollover
+    # If -1 (infinity), keep it as -1
+    business.message_credits = token_limit
     business.subscription_status = "active"
 
     await db.commit()
+    
+    # Invalidate merchant stats cache so the new credits appear immediately
+    from app.api.deps import redis_client
+    await redis_client.delete(f"merchant:stats:{data.business_id}")
 
     return {
         "status": "ok",
